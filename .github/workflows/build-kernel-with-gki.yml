@@ -6,10 +6,6 @@ jobs:
   build:
     name: Build Kernel by ${{ github.actor }}
     runs-on: ubuntu-latest
-    env:
-      CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
-      CCACHE_NOHASHDIR: "true"
-      CCACHE_HARDLINK: "true"
     steps:
     - name: Set swap to 10G
       uses: pierotofy/set-swap-space@master
@@ -20,7 +16,7 @@ jobs:
       run: |
         echo "BUILD_TIME=$(TZ=Asia/Shanghai date "+%y%m%d")" >> $GITHUB_ENV
         sudo apt-get update
-        sudo apt-get install git repo dwarves libelf-dev ccache automake flex lzop bison gperf build-essential zip curl zlib1g-dev g++-multilib libxml2-utils bzip2 libbz2-dev libbz2-1.0 libghc-bzlib-dev squashfs-tools pngcrush schedtool dpkg-dev liblz4-tool make optipng maven libssl-dev pwgen libswitch-perl policycoreutils minicom libxml-sax-base-perl libxml-simple-perl bc libc6-dev-i386 lib32ncurses5-dev libx11-dev lib32z-dev libgl1-mesa-dev xsltproc unzip device-tree-compiler python2 python3
+        sudo apt-get install git dwarves libelf-dev ccache automake flex lzop bison gperf build-essential zip curl zlib1g-dev g++-multilib libxml2-utils bzip2 libbz2-dev libbz2-1.0 libghc-bzlib-dev squashfs-tools pngcrush schedtool dpkg-dev liblz4-tool make optipng maven libssl-dev pwgen libswitch-perl policycoreutils minicom libxml-sax-base-perl libxml-simple-perl bc libc6-dev-i386 lib32ncurses5-dev libx11-dev lib32z-dev libgl1-mesa-dev xsltproc unzip device-tree-compiler python2 python3
         curl -so repo https://storage.googleapis.com/git-repo-downloads/repo
         sudo mv repo /usr/bin
         sudo chmod +x /usr/bin/repo
@@ -42,17 +38,17 @@ jobs:
     - name: KernelSU / SUSFS / Misc
       run: |
         cd /mnt/kernel_workspace
-        #curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -   
-        curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs-a14-6.1/kernel/setup.sh" | bash -s next-susfs-a14-6.1
+        curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -   
+        #curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs-a14-6.1/kernel/setup.sh" | bash -s next-susfs-a14-6.1
         git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
-        #cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch /mnt/kernel_workspace/KernelSU/
+        cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch /mnt/kernel_workspace/KernelSU/
         cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch /mnt/kernel_workspace/common/
         cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/fs/susfs.c /mnt/kernel_workspace/common/fs/
         cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/include/linux/susfs.h /mnt/kernel_workspace/common/include/linux/
         cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/fs/sus_su.c /mnt/kernel_workspace/common/fs/
         cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/include/linux/sus_su.h /mnt/kernel_workspace/common/include/linux/
-        #cd /mnt/kernel_workspace/KernelSU
-        #patch -p1 < 10_enable_susfs_for_ksu.patch
+        cd /mnt/kernel_workspace/KernelSU
+        patch -p1 < 10_enable_susfs_for_ksu.patch
         cd /mnt/kernel_workspace/common
         patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch
         cd /mnt/kernel_workspace
@@ -68,7 +64,7 @@ jobs:
         echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
+        #echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_PID_NS=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_POSIX_MQUEUE=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_IPC_NS=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
