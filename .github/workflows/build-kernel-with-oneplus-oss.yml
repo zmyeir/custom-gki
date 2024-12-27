@@ -1,0 +1,104 @@
+name: Build Kernel with OnePlus OSS 
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Kernel by ${{ github.actor }}
+    runs-on: ubuntu-latest
+    env:
+      CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
+      CCACHE_NOHASHDIR: "true"
+      CCACHE_HARDLINK: "true"
+    steps:
+    - name: Set swap to 10G
+      uses: pierotofy/set-swap-space@master
+      with:
+        swap-size-gb: 10
+
+    - name: Setup build kernel environment
+      run: |
+        echo "BUILD_TIME=$(TZ=Asia/Shanghai date "+%y%m%d")" >> $GITHUB_ENV
+        sudo apt-get update
+        sudo apt-get install git repo dwarves libelf-dev ccache automake flex lzop bison gperf build-essential zip curl zlib1g-dev g++-multilib libxml2-utils bzip2 libbz2-dev libbz2-1.0 libghc-bzlib-dev squashfs-tools pngcrush schedtool dpkg-dev liblz4-tool make optipng maven libssl-dev pwgen libswitch-perl policycoreutils minicom libxml-sax-base-perl libxml-simple-perl bc libc6-dev-i386 lib32ncurses5-dev libx11-dev lib32z-dev libgl1-mesa-dev xsltproc unzip device-tree-compiler python2 python3
+        mkdir -p $GITHUB_WORKSPACE/kernel_workspace
+
+    - name: Download Clang-aosp
+      run: |
+        cd $GITHUB_WORKSPACE/kernel_workspace
+        mkdir clang-aosp
+        wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/tags/android-14.0.0_r18/clang-r487747c.tar.gz -O $GITHUB_WORKSPACE/kernel_workspace/clang-r487747c.tar.gz
+        tar -C clang-aosp/ -zxvf clang-r487747c.tar.gz
+
+    - name: Download source code and build
+      run: |
+        sudo mkdir -p /mnt/kernel_workspace
+        sudo chmod 0777 /mnt/kernel_workspace
+        cd /mnt/kernel_workspace
+        git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
+        mkdir oneplus12_v
+        cd ./oneplus12_v
+        pwd
+        repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m oneplus12_v.xml
+        repo sync -j$(nproc)
+        rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
+        echo "adding ksu"
+        cd ./kernel_platform
+        pwd
+        curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -
+        cd ./KernelSU/kernel
+        pwd
+        sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=11989/' ./Makefile
+        cd ../../
+        pwd
+        echo "adding susfs"
+        cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU/
+        cp ../../susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ./common/
+        cp ../../susfs4ksu/kernel_patches/fs/susfs.c ./common/fs/
+        cp ../../susfs4ksu/kernel_patches/include/linux/susfs.h ./common/include/linux/
+        cp ../../susfs4ksu/kernel_patches/fs/sus_su.c ./common/fs/
+        cp ../../susfs4ksu/kernel_patches/include/linux/sus_su.h ./common/include/linux/
+        cd ./KernelSU/
+        pwd
+        patch -p1 < 10_enable_susfs_for_ksu.patch
+        cd ../common
+        patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch
+        export PATH=$GITHUB_WORKSPACE/kernel_workspace/clang-aosp/bin:$PATH
+        cd ..
+        pwd
+        echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_SUS_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> ./common/arch/arm64/configs/gki_defconfig
+        cd ..
+        pwd
+        sed -i "/stable_scmversion_cmd/s/-maybe-dirty/-Ryhoaca+/g" ./kernel_platform/build/kernel/kleaf/impl/stamp.bzl
+        sed -i "s/dirty/'Ryhoaca+'/g" ./kernel_platform/common/scripts/setlocalversion
+        sed -i '2s/check_defconfig//' ./kernel_platform/common/build.config.gki
+        ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki
+        cp ./out/dist/Image $GITHUB_WORKSPACE/kernel_workspace/
+
+    - name: Make Anykernel3
+      run: |
+        cd $GITHUB_WORKSPACE/kernel_workspace
+        git clone https://github.com/TheWildJames/AnyKernel3.git -b android14-5.15
+        cp $GITHUB_WORKSPACE/kernel_workspace/Image AnyKernel3/
+
+    - name: Upload Image
+      uses: actions/upload-artifact@v4
+      with:
+        name: Image
+        path: kernel_workspace/Image
+
+    - name: Upload AnyKernel3
+      uses: actions/upload-artifact@v4
+      with:
+        name: AK3-${{ env.BUILD_TIME }}
+        path: kernel_workspace/AnyKernel3/*
