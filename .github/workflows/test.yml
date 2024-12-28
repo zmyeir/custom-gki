@@ -41,16 +41,18 @@ jobs:
         #curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -   
         curl -LSs "https://github.com/backslashxx/KernelSU/raw/refs/heads/magic/kernel/setup.sh" | bash -s magic
         git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
-        wget https://raw.githubusercontent.com/zmyeir/Kernel-Builder_Action/refs/heads/main/patches/10_enable_susfs_for_ksu.patch -O /mnt/kernel_workspace/KernelSU/10_enable_susfs_for_ksu.patch
+        cp $GITHUB_WORKSPACE/patches/0001-add-susfs.patch -O /mnt/kernel_workspace/KernelSU/
         cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch /mnt/kernel_workspace/common/
         cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/fs/susfs.c /mnt/kernel_workspace/common/fs/
         cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/include/linux/susfs.h /mnt/kernel_workspace/common/include/linux/
         cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/fs/sus_su.c /mnt/kernel_workspace/common/fs/
         cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/include/linux/sus_su.h /mnt/kernel_workspace/common/include/linux/
+        cp $GITHUB_WORKSPACE/patches/0001-add-re-kernel.patch /mnt/kernel_workspace/common/
         cd /mnt/kernel_workspace/KernelSU
-        patch -p1 < 10_enable_susfs_for_ksu.patch
+        patch -p1 < 0001-add-susfs.patch
         cd /mnt/kernel_workspace/common
         patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch
+        patch -p1 < 0001-add-re-kernel.patch
         cd /mnt/kernel_workspace
         echo "Adding configuration settings to gki_defconfig..."
         echo "CONFIG_KSU=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
@@ -64,12 +66,13 @@ jobs:
         echo "CONFIG_KSU_SUSFS_ENABLE_LOG=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
-        #echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_PID_NS=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_POSIX_MQUEUE=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_IPC_NS=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_USER_NS=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_BPF_STREAM_PARSER=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
+        echo "CONFIG_REKERNEL=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         cat /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         sed -i '/stable_scmversion_cmd/s/maybe-dirty/Ryhoaca/;s/-$android_release-$KMI_GENERATION/-lts/g' ./build/kernel/kleaf/impl/stamp.bzl
         sed -i '2s/check_defconfig//' ./common/build.config.gki
