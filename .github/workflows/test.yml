@@ -14,7 +14,7 @@ jobs:
 
     - name: Setup build kernel environment
       run: |
-        ls $GITHUB_WORKSPACE/**/*
+        ls $GITHUB_WORKSPACE/
         exit 0
         echo "BUILD_TIME=$(TZ=Asia/Shanghai date "+%y%m%d")" >> $GITHUB_ENV
         sudo apt-get update
