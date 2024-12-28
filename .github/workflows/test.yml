@@ -41,7 +41,7 @@ jobs:
         #curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -   
         curl -LSs "https://github.com/backslashxx/KernelSU/raw/refs/heads/magic/kernel/setup.sh" | bash -s magic
         git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
-        cp $GITHUB_WORKSPACE/patches/0001-add-susfs.patch -O /mnt/kernel_workspace/KernelSU/
+        cp $GITHUB_WORKSPACE/patches/0001-add-susfs.patch /mnt/kernel_workspace/KernelSU/
         cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch /mnt/kernel_workspace/common/
         cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/fs/susfs.c /mnt/kernel_workspace/common/fs/
         cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/include/linux/susfs.h /mnt/kernel_workspace/common/include/linux/
