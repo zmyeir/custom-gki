@@ -52,7 +52,7 @@ jobs:
         patch -p1 < 0001-add-susfs.patch
         cd /mnt/kernel_workspace/common
         patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch
-        patch -p1 < 0001-add-re-kernel.patch
+        #patch -p1 < 0001-add-re-kernel.patch
         cd /mnt/kernel_workspace
         echo "Adding configuration settings to gki_defconfig..."
         echo "CONFIG_KSU=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
@@ -72,7 +72,7 @@ jobs:
         echo "CONFIG_IPC_NS=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_USER_NS=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_BPF_STREAM_PARSER=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_REKERNEL=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
+        #echo "CONFIG_REKERNEL=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         cat /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         sed -i '/stable_scmversion_cmd/s/maybe-dirty/Ryhoaca/;s/-$android_release-$KMI_GENERATION/-lts/g' ./build/kernel/kleaf/impl/stamp.bzl
         sed -i '2s/check_defconfig//' ./common/build.config.gki
