@@ -1,13 +1,13 @@
-From d3a1b90642ab2371a6582ae56cfd57ddd5be8d06 Mon Sep 17 00:00:00 2001
+From fb8e4bedfad7f89e8bf014e44c7b93a210f54be8 Mon Sep 17 00:00:00 2001
 From: bot <buildbot@buildhost>
-Date: Sat, 28 Dec 2024 07:02:20 +0800
-Subject: [PATCH] apply patch
+Date: Sun, 29 Dec 2024 12:50:32 +0800
+Subject: [PATCH] add susfs
 
 ---
  kernel/Kconfig           | 143 +++++++++++++
  kernel/Makefile          |  64 +++++-
  kernel/allowlist.c       |  10 +-
- kernel/apk_sign.c        |  14 +-
+ kernel/apk_sign.c        |   1 +
  kernel/apk_sign.h        |   2 +-
  kernel/core_hook.c       | 430 +++++++++++++++++++++++++++++++++++++--
  kernel/kernel_compat.c   |  10 +
@@ -17,12 +17,12 @@ Subject: [PATCH] apply patch
  kernel/ksud.h            |   2 +-
  kernel/manager.h         |   2 +-
  kernel/selinux/rules.c   |  16 +-
- kernel/selinux/selinux.c | 107 ++++++++--
+ kernel/selinux/selinux.c |  95 ++++++++-
  kernel/selinux/selinux.h |  24 ++-
  kernel/sucompat.c        |  52 ++++-
  kernel/throne_tracker.c  |   4 +-
  kernel/throne_tracker.h  |   2 +-
- 18 files changed, 847 insertions(+), 75 deletions(-)
+ 18 files changed, 840 insertions(+), 57 deletions(-)
 
 diff --git a/kernel/Kconfig b/kernel/Kconfig
 index 1f3802f..74a4700 100644
@@ -177,10 +177,10 @@ index 1f3802f..74a4700 100644
 +
  endmenu
 diff --git a/kernel/Makefile b/kernel/Makefile
-index 272b6df..09f46a1 100644
+index 118742d..7c1a73f 100644
 --- a/kernel/Makefile
 +++ b/kernel/Makefile
-@@ -63,4 +63,66 @@ endif
+@@ -67,4 +67,66 @@ endif
  ccflags-y += -Wno-implicit-function-declaration -Wno-strict-prototypes -Wno-int-conversion -Wno-gcc-compat
  ccflags-y += -Wno-declaration-after-statement -Wno-unused-function
  
@@ -299,29 +299,17 @@ index 4fbba93..31fd5b2 100644
  	return ksu_queue_work(&ksu_save_work);
  }
 diff --git a/kernel/apk_sign.c b/kernel/apk_sign.c
-index 1f888b1..9af2828 100644
+index 1f888b1..7e66aa3 100644
 --- a/kernel/apk_sign.c
 +++ b/kernel/apk_sign.c
-@@ -314,10 +314,12 @@ module_param_cb(ksu_debug_manager_uid, &expected_size_ops,
- 
- #endif
- 
--bool is_manager_apk(char *path)
-+bool ksu_is_manager_apk(char *path)
+@@ -317,6 +317,7 @@ module_param_cb(ksu_debug_manager_uid, &expected_size_ops,
+ bool is_manager_apk(char *path)
  {
--	return (check_v2_signature(path, 0x363, "4359c171f32543394cbc23ef908c4bb94cad7c8087002ba164c8230948c21549") // dummy.keystore
--	|| check_v2_signature(path, EXPECTED_SIZE, EXPECTED_HASH)  // ksu official
--/*	|| check_v2_signature(path, custom_size, custom_hash)  // add more as you like 	*/
--	);
--}
-+#ifdef CONFIG_KSU_SUSFS
-+	return (check_v2_signature(path, EXPECTED_SIZE, EXPECTED_HASH) ||
-+			check_v2_signature(path, 384, "7e0c6d7278a3bb8e364e0fcba95afaf3666cf5ff3c245a3b63c8833bd0445cc4")); // 5ec1cff
-+#else
-+	return check_v2_signature(path, EXPECTED_SIZE, EXPECTED_HASH);
-+#endif
-+}
-\ No newline at end of file
+ 	return (check_v2_signature(path, 0x363, "4359c171f32543394cbc23ef908c4bb94cad7c8087002ba164c8230948c21549") // dummy.keystore
++	|| check_v2_signature(path, 384, "7e0c6d7278a3bb8e364e0fcba95afaf3666cf5ff3c245a3b63c8833bd0445cc4") // 5ec1cff
+ 	|| check_v2_signature(path, EXPECTED_SIZE, EXPECTED_HASH)  // ksu official
+ /*	|| check_v2_signature(path, custom_size, custom_hash)  // add more as you like 	*/
+ 	);
 diff --git a/kernel/apk_sign.h b/kernel/apk_sign.h
 index bed501c..e02aa51 100644
 --- a/kernel/apk_sign.h
@@ -335,7 +323,7 @@ index bed501c..e02aa51 100644
  
  #endif
 diff --git a/kernel/core_hook.c b/kernel/core_hook.c
-index 184db7a..ca46389 100644
+index 8b508ff..54e066b 100644
 --- a/kernel/core_hook.c
 +++ b/kernel/core_hook.c
 @@ -33,6 +33,10 @@
@@ -382,8 +370,8 @@ index 184db7a..ca46389 100644
  		// we are manager, allow!
  		return true;
  	}
-@@ -110,7 +131,7 @@ static void setup_groups(struct root_profile *profile, struct cred *cred)
- 	set_groups(cred, group_info);
+@@ -128,7 +149,7 @@ static void disable_seccomp()
+ #endif
  }
  
 -void escape_to_root(void)
@@ -391,16 +379,16 @@ index 184db7a..ca46389 100644
  {
  	struct cred *cred;
  
-@@ -167,7 +188,7 @@ void escape_to_root(void)
- 
- 	setup_groups(profile, cred);
+@@ -189,7 +210,7 @@ void escape_to_root(void)
+ 	disable_seccomp();
+ 	spin_unlock_irq(&current->sighand->siglock);
  
 -	setup_selinux(profile->selinux_domain);
 +	ksu_setup_selinux(profile->selinux_domain);
  }
  
  int ksu_handle_rename(struct dentry *old_dentry, struct dentry *new_dentry)
-@@ -204,7 +225,7 @@ int ksu_handle_rename(struct dentry *old_dentry, struct dentry *new_dentry)
+@@ -226,7 +247,7 @@ int ksu_handle_rename(struct dentry *old_dentry, struct dentry *new_dentry)
  	pr_info("renameat: %s -> %s, new path: %s\n", old_dentry->d_iname,
  		new_dentry->d_iname, buf);
  
@@ -409,7 +397,7 @@ index 184db7a..ca46389 100644
  
  	return 0;
  }
-@@ -229,7 +250,7 @@ int ksu_handle_prctl(int option, unsigned long arg2, unsigned long arg3,
+@@ -251,7 +272,7 @@ int ksu_handle_prctl(int option, unsigned long arg2, unsigned long arg3,
  	}
  
  	bool from_root = 0 == current_uid().val;
@@ -418,7 +406,7 @@ index 184db7a..ca46389 100644
  
  	if (!from_root && !from_manager) {
  		// only root or manager can access this interface
-@@ -253,7 +274,7 @@ int ksu_handle_prctl(int option, unsigned long arg2, unsigned long arg3,
+@@ -275,7 +296,7 @@ int ksu_handle_prctl(int option, unsigned long arg2, unsigned long arg3,
  	if (arg2 == CMD_GRANT_ROOT) {
  		if (is_allow_su()) {
  			pr_info("allow root for: %d\n", current_uid().val);
@@ -427,7 +415,7 @@ index 184db7a..ca46389 100644
  			if (copy_to_user(result, &reply_ok, sizeof(reply_ok))) {
  				pr_err("grant_root: prctl reply error\n");
  			}
-@@ -288,7 +309,7 @@ int ksu_handle_prctl(int option, unsigned long arg2, unsigned long arg3,
+@@ -310,7 +331,7 @@ int ksu_handle_prctl(int option, unsigned long arg2, unsigned long arg3,
  			if (!post_fs_data_lock) {
  				post_fs_data_lock = true;
  				pr_info("post-fs-data triggered\n");
@@ -436,7 +424,7 @@ index 184db7a..ca46389 100644
  			}
  			break;
  		}
-@@ -315,7 +336,7 @@ int ksu_handle_prctl(int option, unsigned long arg2, unsigned long arg3,
+@@ -337,7 +358,7 @@ int ksu_handle_prctl(int option, unsigned long arg2, unsigned long arg3,
  		if (!from_root) {
  			return 0;
  		}
@@ -445,7 +433,7 @@ index 184db7a..ca46389 100644
  			if (copy_to_user(result, &reply_ok, sizeof(reply_ok))) {
  				pr_err("sepolicy: prctl reply error\n");
  			}
-@@ -376,6 +397,338 @@ int ksu_handle_prctl(int option, unsigned long arg2, unsigned long arg3,
+@@ -398,6 +419,338 @@ int ksu_handle_prctl(int option, unsigned long arg2, unsigned long arg3,
  		return 0;
  	}
  
@@ -784,7 +772,7 @@ index 184db7a..ca46389 100644
  	// all other cmds are for 'root manager'
  	if (!from_manager) {
  		return 0;
-@@ -458,7 +811,11 @@ static void ksu_umount_mnt(struct path *path, int flags)
+@@ -480,7 +833,11 @@ static void ksu_umount_mnt(struct path *path, int flags)
  	}
  }
  
@@ -796,8 +784,8 @@ index 184db7a..ca46389 100644
  {
  	struct path path;
  	int err = kern_path(mnt, 0, &path);
-@@ -484,6 +841,19 @@ static void try_umount(const char *mnt, bool check_mnt, int flags)
- #endif
+@@ -501,6 +858,19 @@ static void try_umount(const char *mnt, bool check_mnt, int flags)
+ 	ksu_umount_mnt(&path, flags);
  }
  
 +#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
@@ -816,7 +804,7 @@ index 184db7a..ca46389 100644
  int ksu_handle_setuid(struct cred *new, const struct cred *old)
  {
  	// this hook is used for umounting overlayfs for some uid, if there isn't any module mounted, just ignore it!
-@@ -503,6 +873,17 @@ int ksu_handle_setuid(struct cred *new, const struct cred *old)
+@@ -520,6 +890,17 @@ int ksu_handle_setuid(struct cred *new, const struct cred *old)
  		return 0;
  	}
  
@@ -834,7 +822,7 @@ index 184db7a..ca46389 100644
  	if (!is_appuid(new_uid) || is_unsupported_uid(new_uid.val)) {
  		// pr_info("handle setuid ignore non application or isolated uid: %d\n", new_uid.val);
  		return 0;
-@@ -512,7 +893,16 @@ int ksu_handle_setuid(struct cred *new, const struct cred *old)
+@@ -529,7 +910,16 @@ int ksu_handle_setuid(struct cred *new, const struct cred *old)
  		// pr_info("handle setuid ignore allowed application: %d\n", new_uid.val);
  		return 0;
  	}
@@ -851,7 +839,7 @@ index 184db7a..ca46389 100644
  	if (!ksu_uid_should_umount(new_uid.val)) {
  		return 0;
  	} else {
-@@ -521,31 +911,39 @@ int ksu_handle_setuid(struct cred *new, const struct cred *old)
+@@ -538,31 +928,39 @@ int ksu_handle_setuid(struct cred *new, const struct cred *old)
  #endif
  	}
  
@@ -1137,7 +1125,7 @@ index 1ba6d85..e4c6510 100644
  	}
  
 diff --git a/kernel/selinux/selinux.c b/kernel/selinux/selinux.c
-index 4ba20b0..c6a6c5b 100644
+index 4ba20b0..e171e01 100644
 --- a/kernel/selinux/selinux.c
 +++ b/kernel/selinux/selinux.c
 @@ -8,6 +8,14 @@
@@ -1164,7 +1152,7 @@ index 4ba20b0..c6a6c5b 100644
  {
  	if (transive_to_domain(domain)) {
  		pr_err("transive domain failed.\n");
-@@ -52,35 +60,23 @@ if (!is_domain_permissive) {
+@@ -52,7 +60,7 @@ if (!is_domain_permissive) {
  }*/
  }
  
@@ -1172,11 +1160,8 @@ index 4ba20b0..c6a6c5b 100644
 +void ksu_setenforce(bool enforce)
  {
  #ifdef CONFIG_SECURITY_SELINUX_DEVELOP
--#ifdef KSU_COMPAT_USE_SELINUX_STATE
- 	selinux_state.enforcing = enforce;
--#else
--	selinux_enforcing = enforce;
--#endif
+ #ifdef KSU_COMPAT_USE_SELINUX_STATE
+@@ -63,7 +71,7 @@ void setenforce(bool enforce)
  #endif
  }
  
@@ -1184,25 +1169,8 @@ index 4ba20b0..c6a6c5b 100644
 +bool ksu_getenforce()
  {
  #ifdef CONFIG_SECURITY_SELINUX_DISABLE
--#ifdef KSU_COMPAT_USE_SELINUX_STATE
- 	if (selinux_state.disabled) {
--#else
--	if (selinux_disabled) {
--#endif
- 		return false;
- 	}
- #endif
- 
- #ifdef CONFIG_SECURITY_SELINUX_DEVELOP
--#ifdef KSU_COMPAT_USE_SELINUX_STATE
- 	return selinux_state.enforcing;
--#else
--	return selinux_enforcing;
--#endif
- #else
- 	return true;
- #endif
-@@ -99,7 +95,7 @@ static inline u32 current_sid(void)
+ #ifdef KSU_COMPAT_USE_SELINUX_STATE
+@@ -99,7 +107,7 @@ static inline u32 current_sid(void)
  }
  #endif
  
@@ -1211,7 +1179,7 @@ index 4ba20b0..c6a6c5b 100644
  {
  	char *domain;
  	u32 seclen;
-@@ -113,7 +109,7 @@ bool is_ksu_domain()
+@@ -113,7 +121,7 @@ bool is_ksu_domain()
  	return result;
  }
  
@@ -1220,7 +1188,7 @@ index 4ba20b0..c6a6c5b 100644
  {
  	struct task_security_struct *tsec = (struct task_security_struct *)sec;
  	if (!tsec) {
-@@ -131,6 +127,83 @@ bool is_zygote(void *sec)
+@@ -131,6 +139,83 @@ bool is_zygote(void *sec)
  	return result;
  }
  
