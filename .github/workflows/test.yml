@@ -40,18 +40,18 @@ jobs:
         cd /mnt/kernel_workspace
         #curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -   
         curl -LSs "https://github.com/backslashxx/KernelSU/raw/refs/heads/magic/kernel/setup.sh" | bash -s magic
-        git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
-        wget https://raw.githubusercontent.com/zmyeir/custom-gki/refs/heads/main/patches/0001-add-susfs.patch -O /mnt/kernel_workspace/KernelSU/0001-add-susfs.patch
-        cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch /mnt/kernel_workspace/common/
-        cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/fs/susfs.c /mnt/kernel_workspace/common/fs/
-        cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/include/linux/susfs.h /mnt/kernel_workspace/common/include/linux/
-        cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/fs/sus_su.c /mnt/kernel_workspace/common/fs/
-        cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/include/linux/sus_su.h /mnt/kernel_workspace/common/include/linux/
-        wget https://raw.githubusercontent.com/zmyeir/custom-gki/refs/heads/main/patches/0001-add-re-kernel.patch -O /mnt/kernel_workspace/common/0001-add-re-kernel.patch
-        cd /mnt/kernel_workspace/KernelSU
-        patch -p1 < 0001-add-susfs.patch
+        #git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
+        #wget https://raw.githubusercontent.com/zmyeir/custom-gki/refs/heads/main/patches/0001-add-susfs.patch -O /mnt/kernel_workspace/KernelSU/0001-add-susfs.patch
+        #cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch /mnt/kernel_workspace/common/
+        #cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/fs/susfs.c /mnt/kernel_workspace/common/fs/
+        #cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/include/linux/susfs.h /mnt/kernel_workspace/common/include/linux/
+        #cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/fs/sus_su.c /mnt/kernel_workspace/common/fs/
+        #cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/include/linux/sus_su.h /mnt/kernel_workspace/common/include/linux/
+        wget https://raw.githubusercontent.com/zmyeir/custom-gki/refs/heads/main/patches/0001-proc-pid-maps-dont-allow-paths-with-lineage-to-be-li.patch -O /mnt/kernel_workspace/common/0001-proc-pid-maps-dont-allow-paths-with-lineage-to-be-li.patch
+        #cd /mnt/kernel_workspace/KernelSU
+        #patch -p1 < 0001-add-susfs.patch
         cd /mnt/kernel_workspace/common
-        patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch
+        patch -p1 < 0001-proc-pid-maps-dont-allow-paths-with-lineage-to-be-li.patch
         #patch -p1 < 0001-add-re-kernel.patch
         cd /mnt/kernel_workspace
         echo "Adding configuration settings to gki_defconfig..."
