@@ -1,13 +1,13 @@
-From fb8e4bedfad7f89e8bf014e44c7b93a210f54be8 Mon Sep 17 00:00:00 2001
+From 3377bdd77740eee3ac2983b8d9432c58574d3c8c Mon Sep 17 00:00:00 2001
 From: bot <buildbot@buildhost>
-Date: Sun, 29 Dec 2024 12:50:32 +0800
-Subject: [PATCH] add susfs
+Date: Sun, 29 Dec 2024 13:37:28 +0800
+Subject: [PATCH] apply susfs
 
 ---
  kernel/Kconfig           | 143 +++++++++++++
  kernel/Makefile          |  64 +++++-
  kernel/allowlist.c       |  10 +-
- kernel/apk_sign.c        |   1 +
+ kernel/apk_sign.c        |  14 +-
  kernel/apk_sign.h        |   2 +-
  kernel/core_hook.c       | 430 +++++++++++++++++++++++++++++++++++++--
  kernel/kernel_compat.c   |  10 +
@@ -22,7 +22,7 @@ Subject: [PATCH] add susfs
  kernel/sucompat.c        |  52 ++++-
  kernel/throne_tracker.c  |   4 +-
  kernel/throne_tracker.h  |   2 +-
- 18 files changed, 840 insertions(+), 57 deletions(-)
+ 18 files changed, 848 insertions(+), 62 deletions(-)
 
 diff --git a/kernel/Kconfig b/kernel/Kconfig
 index 1f3802f..74a4700 100644
@@ -299,17 +299,30 @@ index 4fbba93..31fd5b2 100644
  	return ksu_queue_work(&ksu_save_work);
  }
 diff --git a/kernel/apk_sign.c b/kernel/apk_sign.c
-index 1f888b1..7e66aa3 100644
+index 1f888b1..917722c 100644
 --- a/kernel/apk_sign.c
 +++ b/kernel/apk_sign.c
-@@ -317,6 +317,7 @@ module_param_cb(ksu_debug_manager_uid, &expected_size_ops,
- bool is_manager_apk(char *path)
+@@ -314,10 +314,14 @@ module_param_cb(ksu_debug_manager_uid, &expected_size_ops,
+ 
+ #endif
+ 
+-bool is_manager_apk(char *path)
++bool ksu_is_manager_apk(char *path)
  {
- 	return (check_v2_signature(path, 0x363, "4359c171f32543394cbc23ef908c4bb94cad7c8087002ba164c8230948c21549") // dummy.keystore
-+	|| check_v2_signature(path, 384, "7e0c6d7278a3bb8e364e0fcba95afaf3666cf5ff3c245a3b63c8833bd0445cc4") // 5ec1cff
- 	|| check_v2_signature(path, EXPECTED_SIZE, EXPECTED_HASH)  // ksu official
- /*	|| check_v2_signature(path, custom_size, custom_hash)  // add more as you like 	*/
+-	return (check_v2_signature(path, 0x363, "4359c171f32543394cbc23ef908c4bb94cad7c8087002ba164c8230948c21549") // dummy.keystore
+-	|| check_v2_signature(path, EXPECTED_SIZE, EXPECTED_HASH)  // ksu official
+-/*	|| check_v2_signature(path, custom_size, custom_hash)  // add more as you like 	*/
++#ifdef CONFIG_KSU_SUSFS
++	return (check_v2_signature(path, EXPECTED_SIZE, EXPECTED_HASH)
++		||  check_v2_signature(path, 0x363, "4359c171f32543394cbc23ef908c4bb94cad7c8087002ba164c8230948c21549") // dummy.keystore
++		||  check_v2_signature(path, 384, "7e0c6d7278a3bb8e364e0fcba95afaf3666cf5ff3c245a3b63c8833bd0445cc4") // 5ec1cff
  	);
+-}
++#else
++	return check_v2_signature(path, EXPECTED_SIZE, EXPECTED_HASH);
++#endif
++}
+\ No newline at end of file
 diff --git a/kernel/apk_sign.h b/kernel/apk_sign.h
 index bed501c..e02aa51 100644
 --- a/kernel/apk_sign.h
