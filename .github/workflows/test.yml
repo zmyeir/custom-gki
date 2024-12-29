@@ -39,7 +39,7 @@ jobs:
       run: |
         cd /mnt/kernel_workspace
         #curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -   
-        curl -LSs "https://github.com/backslashxx/KernelSU/raw/refs/heads/magic/kernel/setup.sh" | bash -s magic
+        #curl -LSs "https://github.com/backslashxx/KernelSU/raw/refs/heads/magic/kernel/setup.sh" | bash -s magic
         #git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
         #wget https://raw.githubusercontent.com/zmyeir/custom-gki/refs/heads/main/patches/0001-add-susfs.patch -O /mnt/kernel_workspace/KernelSU/0001-add-susfs.patch
         #cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch /mnt/kernel_workspace/common/
@@ -55,7 +55,7 @@ jobs:
         #patch -p1 < 0001-add-re-kernel.patch
         cd /mnt/kernel_workspace
         echo "Adding configuration settings to gki_defconfig..."
-        echo "CONFIG_KSU=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
+        #echo "CONFIG_KSU=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         #echo "CONFIG_KSU_SUSFS=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         #echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         #echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
