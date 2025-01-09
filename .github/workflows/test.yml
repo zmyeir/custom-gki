@@ -38,42 +38,42 @@ jobs:
     - name: KernelSU / SUSFS / Misc
       run: |
         cd /mnt/kernel_workspace
-        echo "Add KernelSU"
+        #echo "Add KernelSU"
         #curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -
-        curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU/next/kernel/setup.sh" | bash -s next
-        echo "Applying SUSFS patches..."
-        git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
-        cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch /mnt/kernel_workspace/KernelSU-Next/
-        cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch /mnt/kernel_workspace/common/
-        cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/fs/* /mnt/kernel_workspace/common/fs/
-        cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/include/linux/* /mnt/kernel_workspace/common/include/linux/
+        #curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU/next/kernel/setup.sh" | bash -s next
+        #echo "Applying SUSFS patches..."
+        #git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
+        #cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch /mnt/kernel_workspace/KernelSU-Next/
+        #cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch /mnt/kernel_workspace/common/
+        #cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/fs/* /mnt/kernel_workspace/common/fs/
+        #cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/include/linux/* /mnt/kernel_workspace/common/include/linux/
         wget https://raw.githubusercontent.com/zmyeir/custom-gki/refs/heads/main/patches/69_hide_stuff.patch -O /mnt/kernel_workspace/common/69_hide_stuff.patch
-        cd /mnt/kernel_workspace/KernelSU-Next
-        patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
+        #cd /mnt/kernel_workspace/KernelSU-Next
+        #patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
         cd /mnt/kernel_workspace/common
         patch -p1 < 69_hide_stuff.patch
-        patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch
-        cd /mnt/kernel_workspace
-        echo "Add misc"
-        git clone https://github.com/TheWildJames/kernel_patches.git
-        cp /mnt/kernel_workspace/kernel_patches/apk_sign.c_fix.patch ./
-        patch -p1 -F 3 < apk_sign.c_fix.patch
-        cp /mnt/kernel_workspace/kernel_patches/core_hook.c_fix.patch ./
-        patch -p1 --fuzz=3 < ./core_hook.c_fix.patch
-        cp /mnt/kernel_workspace/kernel_patches/selinux.c_fix.patch ./
-        patch -p1 -F 3 < selinux.c_fix.patch
+        #patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch
+        #cd /mnt/kernel_workspace
+        #echo "Add misc"
+        #git clone https://github.com/TheWildJames/kernel_patches.git
+        #cp /mnt/kernel_workspace/kernel_patches/apk_sign.c_fix.patch ./
+        #patch -p1 -F 3 < apk_sign.c_fix.patch
+        #cp /mnt/kernel_workspace/kernel_patches/core_hook.c_fix.patch ./
+        #patch -p1 --fuzz=3 < ./core_hook.c_fix.patch
+        #cp /mnt/kernel_workspace/kernel_patches/selinux.c_fix.patch ./
+        #patch -p1 -F 3 < selinux.c_fix.patch
         echo "Adding configuration settings to gki_defconfig..."
-        echo "CONFIG_KSU=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
+        #echo "CONFIG_KSU=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
+        #echo "CONFIG_KSU_SUSFS=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
+        #echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
+        #echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_PID_NS=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_POSIX_MQUEUE=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_IPC_NS=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_USER_NS=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_BPF_STREAM_PARSER=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         cat /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
-        sed -i '/stable_scmversion_cmd/s/maybe-dirty/Ryhoaca/;s/-$android_release-$KMI_GENERATION/-lts/g' ./build/kernel/kleaf/impl/stamp.bzl
+        sed -i '/stable_scmversion_cmd/s/maybe-dirty/c3bf26/;s/-$android_release-$KMI_GENERATION/-lts/g' ./build/kernel/kleaf/impl/stamp.bzl
         sed -i '2s/check_defconfig//' ./common/build.config.gki
         rm -rf ./common/android/abi_gki_protected_exports_aarch64
         rm -rf ./common/android/abi_gki_protected_exports_x86_64
