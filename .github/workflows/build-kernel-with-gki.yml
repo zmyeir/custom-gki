@@ -59,9 +59,10 @@ jobs:
         cd /mnt/kernel_workspace/common
         patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch
         cd /mnt/kernel_workspace
-        echo "Add misc"
+        echo "misc"
         cp /mnt/kernel_workspace/custom-gki/patches/69_hide_stuff.patch /mnt/kernel_workspace/common/
         patch -p1 < 69_hide_stuff.patch
+        cd /mnt/kernel_workspace
         echo "Adding configuration settings to gki_defconfig..."
         echo "CONFIG_KSU=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
