@@ -7,10 +7,10 @@ jobs:
     name: Build Kernel by ${{ github.actor }}
     runs-on: ubuntu-latest
     steps:
-    - name: Set swap to 10G
+    - name: Set swap
       uses: pierotofy/set-swap-space@master
       with:
-        swap-size-gb: 10
+        swap-size-gb: 8
 
     - name: Setup build kernel environment
       run: |
@@ -23,6 +23,8 @@ jobs:
         mkdir -p $GITHUB_WORKSPACE/kernel_workspace
         sudo mkdir -p /mnt/kernel_workspace
         sudo chmod 0777 /mnt/kernel_workspace
+        cd /mnt/kernel_workspace
+        git clone https://github.com/zmyeir/custom-gki --depth=1
 
     - name: Download source code
       run: |
@@ -38,20 +40,28 @@ jobs:
     - name: KernelSU / SUSFS / Misc
       run: |
         cd /mnt/kernel_workspace
-        #curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -   
-        curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next-susfs-a14-6.1/kernel/setup.sh" | bash -s next-susfs-a14-6.1
+        echo "Add KernelSU"
+        #curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -
+        curl -LSs "https://raw.githubusercontent.com/backslashxx/KernelSU/magic/kernel/setup.sh" | bash -s magic
+        echo "Applying SUSFS patches..."
+        echo "kernelsu"
         git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
-        #cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch /mnt/kernel_workspace/KernelSU/
+        cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch /mnt/kernel_workspace/KernelSU/
+        cp /mnt/kernel_workspace/custom-gki/patches/susfs.patch /mnt/kernel_workspace/KernelSU/
+        cd /mnt/kernel_workspace/KernelSU/
+        patch -p1 < 10_enable_susfs_for_ksu.patch || true
+        patch -p1 < susfs.patch
+        cd /mnt/kernel_workspace
+        echo "ack"
         cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch /mnt/kernel_workspace/common/
-        cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/fs/susfs.c /mnt/kernel_workspace/common/fs/
-        cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/include/linux/susfs.h /mnt/kernel_workspace/common/include/linux/
-        cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/fs/sus_su.c /mnt/kernel_workspace/common/fs/
-        cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/include/linux/sus_su.h /mnt/kernel_workspace/common/include/linux/
-        #cd /mnt/kernel_workspace/KernelSU
-        #patch -p1 < 10_enable_susfs_for_ksu.patch
-        cd /mnt/kernel_workspace/common
+        cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/fs/* /mnt/kernel_workspace/common/fs/
+        cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/include/linux/* /mnt/kernel_workspace/common/include/linux/
         patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch
         cd /mnt/kernel_workspace
+        echo "Add misc"
+        cp /mnt/kernel_workspace/custom-gki/patches/69_hide_stuff.patch /mnt/kernel_workspace/common/
+        cd /mnt/kernel_workspace/common
+        patch -p1 < 69_hide_stuff.patch
         echo "Adding configuration settings to gki_defconfig..."
         echo "CONFIG_KSU=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_KSU_SUSFS=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
@@ -63,7 +73,7 @@ jobs:
         echo "CONFIG_USER_NS=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         echo "CONFIG_BPF_STREAM_PARSER=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
         cat /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
-        sed -i '/stable_scmversion_cmd/s/maybe-dirty/Ryhoaca/;s/-$android_release-$KMI_GENERATION/-lts/g' ./build/kernel/kleaf/impl/stamp.bzl
+        sed -i '/stable_scmversion_cmd/s/maybe-dirty/c3bf26/;s/-$android_release-$KMI_GENERATION/-lts/g' ./build/kernel/kleaf/impl/stamp.bzl
         sed -i '2s/check_defconfig//' ./common/build.config.gki
         rm -rf ./common/android/abi_gki_protected_exports_aarch64
         rm -rf ./common/android/abi_gki_protected_exports_x86_64
