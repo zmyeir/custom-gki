@@ -193,7 +193,7 @@ jobs:
           git config --global user.email "build-bot@build-host"
           git config --global user.name "builder"
           cd ./kernel_platform/common
-          git add *
+          git add -A
           git commit -s -a -m "build"
           cd "/mnt/$CONFIG"
           ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki thin all enable
