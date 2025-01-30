@@ -2,22 +2,16 @@ name: Build OnePlus 12 6.1 Kernel
 
 on:
   workflow_dispatch:
-  
+
 jobs:
   build-kernel-a14-6-1-kernelsu-susfs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Maximize build space
-        uses: easimon/maximize-build-space@master
+      - name: Set swap
+        uses: pierotofy/set-swap-space@master
         with:
-          root-reserve-mb: 8192
-          temp-reserve-mb: 2048
-          swap-size-mb: 16384
-          remove-dotnet: 'true'
-          remove-android: 'true'
-          remove-haskell: 'true'
-          remove-codeql: 'true'
+          swap-size-gb: 16
 
       - name: Set CONFIG Environment Variable
         run: |
@@ -212,6 +206,6 @@ jobs:
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Anykernel3-OP12-A15-android14-6.1-KernelSU-SUSFS.zip
+          name: Anykernel3-OP12-A15-android14-6.1-KernelSU-SUSFS
           path: |
             *.zip
