@@ -78,9 +78,10 @@ jobs:
           
           echo "Adding KernelSU..."
           curl -LSs "https://raw.githubusercontent.com/backslashxx/KernelSU/magic/kernel/setup.sh" | bash -s magic
-          cd ./KernelSU/kernel
-          sed -i 's/ccflags-y += -DKSU_VERSION=16/ccflags-y += -DKSU_VERSION=12021/' ./Makefile
-          
+          KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
+          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
+          sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
+
       - name: Apply SUSFS Patches
         run: |
           echo "Changing to configuration directory: /mnt/$CONFIG..."
@@ -163,9 +164,11 @@ jobs:
           
           # Run sed commands for modifications
           sed -i 's/check_defconfig//' ./common/build.config.gki
-          sed -i '$s|echo "\$res"|echo "Zsck+"|' ./common/scripts/setlocalversion
+          sed -i 's/ -dirty//g' ./common/scripts/setlocalversion
+          sed -i 's/ -dirty//g' ./msm-kernel/scripts/setlocalversion
+          sed -i '$s|echo "\$res"|echo "$res-Zsck+"|' ./common/scripts/setlocalversion
+          sed -i '$s|echo "\$res"|echo "$res-Zsck+"|' ./msm-kernel/scripts/setlocalversion
           sed -i "/stable_scmversion_cmd/s/-maybe-dirty//g" ./build/kernel/kleaf/impl/stamp.bzl
-          sed -i 's/-dirty//' ./common/scripts/setlocalversion
 
           #sed -i '/echo "LTO $LTO "/i export LTO=thin' ./oplus/build/oplus_setup.sh
           #sed -i 's/export RECOMPILE_KERNEL="1"/export RECOMPILE_KERNEL="0"/g' ./oplus/build/oplus_setup.sh
@@ -186,11 +189,17 @@ jobs:
           cd "/mnt/$CONFIG"
           
           echo "Building the kernel..."
-          rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
-          git config --global user.email "build-boot@build-host"
+          rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
+          rm -rf ./kernel_platform/msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
+          git config --global user.email "build-bot@build-host"
           git config --global user.name "builder"
+          cd ./kernel_platform/common
           git add *
-          git commit -s -a -m "getting rid of -dirty"
+          git commit -a -m "build"
+          cd ../kernel_platform/msm-kernel
+          git add *
+          git commit -a -m "build"
+          cd "/mnt/$CONFIG"
           ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki thin all enable
    
       - name: Create Bootimgs Folder and Copy Images
@@ -201,7 +210,7 @@ jobs:
           echo "Copying Image"
           #cp ./out/dist/Image $GITHUB_WORKSPACE/AnyKernel3/Image
           tar -czvf ack_out.tgz ./out/dist/{*.img,Image} || echo e
-          tar -czvf msm_out.tgz ./out/msm-pineapple-pineapple-gki/dist/{*.img,Image}  || echo e
+          tar -czvf msm_out.tgz ./out/msm-pineapple-pineapple-gki/dist/{*.img,Image} || echo e
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
