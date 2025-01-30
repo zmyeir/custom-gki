@@ -8,10 +8,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Set swap
-        uses: pierotofy/set-swap-space@master
-        with:
-          swap-size-gb: 16
+      - name: Set swap  
         run: |
           export SWAP_FILE=$(swapon --show=NAME | tail -n 1)
           sudo swapoff $SWAP_FILE
