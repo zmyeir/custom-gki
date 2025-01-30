@@ -1,4 +1,4 @@
-name: Build OnePlus 12 6.1 Kernel
+name: Build OnePlus 12 Android 14 6.1 Kernel
 
 on:
   workflow_dispatch:
@@ -9,9 +9,16 @@ jobs:
 
     steps:
       - name: Set swap
-        uses: pierotofy/set-swap-space@master
-        with:
-          swap-size-gb: 16
+        run: |
+          export SWAP_FILE=$(swapon --show=NAME | tail -n 1)
+          sudo swapoff $(swapon --show=NAME | tail -n 1)
+          sudo rm $(swapon --show=NAME | tail -n 1)
+          sudo fallocate -l 16G /swap_filex
+          sudo chmod 600 /swap_filex
+          sudo mkswap /swap_filex
+          sudo swapon /swap_filex
+          df -h
+          free -h
 
       - name: Set CONFIG Environment Variable
         run: |
