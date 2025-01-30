@@ -33,13 +33,13 @@ jobs:
           sudo mkdir -p /mnt/kernel_workspace
           sudo chmod 0777 /mnt/kernel_workspace
 
-      - name: Install Repo
+      - name: Install dependencies
         run: |
-          # Install dependencies
-          mkdir -p ./git-repo
-          curl https://storage.googleapis.com/git-repo-downloads/repo > ./git-repo/repo
-          chmod a+rx ./git-repo/repo
-          echo "REPO=$GITHUB_WORKSPACE/./git-repo/repo" >> $GITHUB_ENV
+          sudo apt update && sudo apt upgrade -y
+          sudo apt install -y python3 git
+          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/repo
+          chmod a+x ~/repo
+          sudo mv ~/repo /usr/local/bin/repo
 
       - name: Clone AnyKernel3 and Other Dependencies
         run: |
@@ -65,11 +65,11 @@ jobs:
           
           # Initialize and sync kernel source
           echo "Initializing and syncing kernel source..."
-          $REPO init -u https://github.com/RealJohnGalt/opsm8650_kernel_manifest.git -b kplatform -m default.xml
+          repo init -u https://github.com/RealJohnGalt/opsm8650_kernel_manifest.git -b kplatform -m default.xml
           
           # Sync repo and apply patches
-          $REPO --version
-          $REPO --trace sync -c -j$(nproc --all) --no-tags --fail-fast
+          repo --version
+          repo --trace sync -c -j$(nproc --all) --no-tags --fail-fast
           
       - name: Add KernelSU
         run: |
@@ -171,7 +171,7 @@ jobs:
           #sed -i 's/export RECOMPILE_KERNEL="1"/export RECOMPILE_KERNEL="0"/g' ./oplus/build/oplus_setup.sh
           #sed -i 's/export REPACK_IMG=true/export REPACK_IMG=false/g' ./oplus/build/oplus_setup.sh
           
-          #sed -i 's/^#\(choose_lto_type \$3\)/\1/' ./oplus/build/oplus_setup.sh
+          sed -i 's/^#\(choose_lto_type \$3\)/\1/' ./oplus/build/oplus_setup.sh
           #sed -i 's/^#\(choose_target_build \$4\)/\1/' ./oplus/build/oplus_setup.sh
           #sed -i 's/^#\(choose_repack_img \$5\)/\1/' ./oplus/build/oplus_setup.sh
 
@@ -191,7 +191,7 @@ jobs:
           git config --global user.name "builder"
           git add *
           git commit -s -a -m "getting rid of -dirty"
-          ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki thin all none
+          ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki thin all enable
    
       - name: Create Bootimgs Folder and Copy Images
         run: |
@@ -199,12 +199,12 @@ jobs:
           cd "/mnt/$CONFIG"
           
           echo "Copying Image"
-          cp ./out/dist/Image $GITHUB_WORKSPACE/AnyKernel3/Image
-          ls ./out/dist/
+          #cp ./out/dist/Image $GITHUB_WORKSPACE/AnyKernel3/Image
+          tar -czvf ack_out.tgz ./out/dist/{*.img,Image} || echo e
+          tar -czvf msm_out.tgz ./out/msm-pineapple-pineapple-gki/dist/{*.img,Image}  || echo e
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Anykernel3-OP12-A15-android14-6.1-KernelSU-SUSFS
-          path: |
-            $GITHUB_WORKSPACE/AnyKernel3
+          name: OP12-A15-android14-6.1-KernelSU-SUSFS
+          path: /mnt/kernel_workspace/*.tgz
