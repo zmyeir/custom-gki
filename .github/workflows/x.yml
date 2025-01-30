@@ -20,16 +20,8 @@ jobs:
           df -h
           free -h
 
-      - name: Set CONFIG Environment Variable
+      - name: Set Environment Variable
         run: |
-          # Set CONFIG dynamically based on matrix values
-          CONFIG="kernel_workspace"
-          
-          # Set CONFIG as an environment variable for future steps
-          echo "CONFIG=$CONFIG" >> $GITHUB_ENV
-          
-          echo "CONFIG set to: $CONFIG"
-
           sudo mkdir -p /mnt/kernel_workspace
           sudo chmod 0777 /mnt/kernel_workspace
 
@@ -60,8 +52,8 @@ jobs:
       
       - name: Initialize and Sync Kernel Source
         run: |
-          echo "Creating folder for configuration: $CONFIG..."
-          cd "/mnt/$CONFIG"
+          echo "Creating folder for configuration: /mnt/kernel_workspace..."
+          cd "/mnt/kernel_workspace"
           
           # Initialize and sync kernel source
           echo "Initializing and syncing kernel source..."
@@ -73,8 +65,8 @@ jobs:
           
       - name: Add KernelSU
         run: |
-          echo "Changing to configuration directory: /mnt/$CONFIG..."
-          cd "/mnt/$CONFIG/kernel_platform"
+          echo "Changing to configuration directory: /mnt/kernel_workspace..."
+          cd "/mnt/kernel_workspace/kernel_platform"
           
           echo "Adding KernelSU..."
           curl -LSs "https://raw.githubusercontent.com/backslashxx/KernelSU/magic/kernel/setup.sh" | bash -s magic
@@ -85,8 +77,8 @@ jobs:
 
       - name: Apply SUSFS Patches
         run: |
-          echo "Changing to configuration directory: /mnt/$CONFIG..."
-          cd "/mnt/$CONFIG/kernel_platform"
+          echo "Changing to configuration directory: /mnt/kernel_workspace..."
+          cd "/mnt/kernel_workspace/kernel_platform"
           
           echo "Applying SUSFS patches..."
           
@@ -109,16 +101,16 @@ jobs:
 
       - name: Apply Hide Stuff Patches
         run: |
-          echo "Changing to configuration directory: /mnt/$CONFIG..."
-          cd "/mnt/$CONFIG/kernel_platform/common"
+          echo "Changing to configuration directory: /mnt/kernel_workspace..."
+          cd "/mnt/kernel_workspace/kernel_platform/common"
           # Apply additional patch
           cp $GITHUB_WORKSPACE/custom-gki/patches/69_hide_stuff.patch ./
           patch -p1 -F 3 < 69_hide_stuff.patch
 
       - name: Add SUSFS Configuration Settings
         run: |
-          echo "Changing to configuration directory: /mnt/$CONFIG/kernel_platform..."
-          cd "/mnt/$CONFIG/kernel_platform"
+          echo "Changing to configuration directory: /mnt/kernel_workspace/kernel_platform..."
+          cd "/mnt/kernel_workspace/kernel_platform"
           
           echo "Adding configuration settings to gki_defconfig..."
           
@@ -146,8 +138,8 @@ jobs:
 
       - name: Add Misc Configuration Settings
         run: |
-          echo "Changing to configuration directory: /mnt/$CONFIG/kernel_platform..."
-          cd "/mnt/$CONFIG/kernel_platform"
+          echo "Changing to configuration directory: /mnt/kernel_workspace/kernel_platform..."
+          cd "/mnt/kernel_workspace/kernel_platform"
           
           echo "Adding configuration settings to gki_defconfig..."
           echo "CONFIG_PID_NS=y" >> ./common/arch/arm64/configs/gki_defconfig
@@ -158,8 +150,8 @@ jobs:
 
       - name: Run sed and perl Commands
         run: |
-          echo "Changing to configuration directory: /mnt/$CONFIG..."
-          cd "/mnt/$CONFIG/kernel_platform"
+          echo "Changing to configuration directory: /mnt/kernel_workspace..."
+          cd "/mnt/kernel_workspace/kernel_platform"
           
           echo "Running sed commands..."
           
@@ -171,7 +163,7 @@ jobs:
 
           #sed -i '/echo "LTO $LTO "/i export LTO=thin' ./oplus/build/oplus_setup.sh
           #sed -i 's/export RECOMPILE_KERNEL="1"/export RECOMPILE_KERNEL="0"/g' ./oplus/build/oplus_setup.sh
-          sed -i 's/export REPACK_IMG=true/export REPACK_IMG=false/g' ./oplus/build/oplus_setup.sh
+          #sed -i 's/export REPACK_IMG=true/export REPACK_IMG=false/g' ./oplus/build/oplus_setup.sh
           
           sed -i 's/^#\(choose_lto_type \$3\)/\1/' ./oplus/build/oplus_setup.sh
           #sed -i 's/^#\(choose_target_build \$4\)/\1/' ./oplus/build/oplus_setup.sh
@@ -184,24 +176,23 @@ jobs:
 
       - name: Build the Kernel
         run: |
-          echo "Changing to configuration directory: /mnt/$CONFIG..."
-          cd "/mnt/$CONFIG"
+          echo "Changing to configuration directory: /mnt/kernel_workspace..."
+          cd "/mnt/kernel_workspace"
           
           echo "Building the kernel..."
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
-          rm -rf ./kernel_platform/msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
-          git config --global user.email "build-bot@build-host"
-          git config --global user.name "builder"
-          cd ./kernel_platform/common
-          git add -A
-          git commit -s -a -m "build"
-          cd "/mnt/$CONFIG"
+          #git config --global user.email "build-bot@build-host"
+          #git config --global user.name "builder"
+          #cd ./kernel_platform/common
+          #git add -A
+          #git commit -s -a -m "build"
+          #cd "/mnt/kernel_workspace"
           ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki thin all enable
    
       - name: Create Bootimgs Folder and Copy Images
         run: |
-          echo "Changing to configuration directory: /mnt/$CONFIG..."
-          cd "/mnt/$CONFIG"
+          echo "Changing to configuration directory: /mnt/kernel_workspace..."
+          cd "/mnt/kernel_workspace"
           
           echo "Copying Image"
           cp ./out/dist/Image $GITHUB_WORKSPACE/AnyKernel3/Image
