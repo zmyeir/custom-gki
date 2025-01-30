@@ -163,7 +163,7 @@ jobs:
           
           # Run sed commands for modifications
           sed -i 's/check_defconfig//' ./common/build.config.gki
-          sed -i '$s|echo "\$res"|echo "\$res-Zsck+"|' ./common/scripts/setlocalversion
+          sed -i '$s|echo "\$res"|echo "Zsck+"|' ./common/scripts/setlocalversion
           sed -i "/stable_scmversion_cmd/s/-maybe-dirty//g" ./build/kernel/kleaf/impl/stamp.bzl
           sed -i 's/-dirty//' ./common/scripts/setlocalversion
 
@@ -187,10 +187,10 @@ jobs:
           
           echo "Building the kernel..."
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
-          #git config --global user.email "bins4us@hotmail.com"
-          #git config --global user.name "TheWildJames"
-          #git add *
-          #git commit -s -a -m "getting rid of -dirty"
+          git config --global user.email "build-boot@build-host"
+          git config --global user.name "builder"
+          git add *
+          git commit -s -a -m "getting rid of -dirty"
           ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki thin all none
    
       - name: Create Bootimgs Folder and Copy Images
@@ -200,20 +200,11 @@ jobs:
           
           echo "Copying Image"
           cp ./out/dist/Image $GITHUB_WORKSPACE/AnyKernel3/Image
-          ls ./out/
-
-      - name: Create ZIP Files for Different Formats
-        run: |
-          echo "Creating zip files for all formats..."
-          cd ./AnyKernel3
-          
-          ZIP_NAME="Anykernel3-OP12-A15-android14-6.1-KernelSU-SUSFS.zip"
-          echo "Creating zip file $ZIP_NAME..."
-          zip -r "../$ZIP_NAME" ./*
+          ls ./out/dist/
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Anykernel3-OP12-A15-android14-6.1-KernelSU-SUSFS
           path: |
-            *.zip
+            $GITHUB_WORKSPACE/AnyKernel3
