@@ -62,6 +62,9 @@ jobs:
           # Sync repo and apply patches
           repo --version
           repo --trace sync -c -j$(nproc --all) --no-tags --fail-fast
+          cd kernel_platform
+          rm common -rf
+          git clone --depth=1 https://github.com/RealJohnGalt/kernel_common_oneplus_sm8650.git -b kplatform-staging common
           
       - name: Add KernelSU
         run: |
@@ -188,7 +191,7 @@ jobs:
           #git commit -s -a -m "build"
           #cd "/mnt/kernel_workspace"
           ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki thin all enable
-   
+
       - name: Create Bootimgs Folder and Copy Images
         run: |
           echo "Changing to configuration directory: /mnt/kernel_workspace..."
@@ -200,5 +203,5 @@ jobs:
       - name: Upload AnyKernel3
         uses: actions/upload-artifact@v4
         with:
-          name: AnyKernel3-OP12-A15-android14-6.1-KernelSU-SUSFS
+          name: AnyKernel3-OP12-A15-6.1-KernelSU-SUSFS
           path: AnyKernel3/*
