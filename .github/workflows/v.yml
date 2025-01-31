@@ -1,79 +1,102 @@
-name: Build Kernel V
+name: Build OnePlus 12 yaap Kernel
+
 on:
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Build Kernel by ${{ github.actor }}
-    runs-on: ubuntu-latest
+  build-kernel:
+    runs-on: ubuntu-22.04
+
     steps:
-    - name: Set swap to 10G
-      uses: pierotofy/set-swap-space@master
-      with:
-        swap-size-gb: 10
+      - name: Set swap  
+        run: |
+          export SWAP_FILE=$(swapon --show=NAME | tail -n 1)
+          sudo swapoff $SWAP_FILE
+          sudo rm -rf $SWAP_FILE
+          sudo fallocate -l 16G /swap_filex
+          sudo chmod 600 /swap_filex
+          sudo mkswap /swap_filex
+          sudo swapon /swap_filex
+          df -h
+          free -h
 
-    - name: Setup build kernel environment
-      run: |
-        echo "BUILD_TIME=$(TZ=Asia/Shanghai date "+%y%m%d")" >> $GITHUB_ENV
-        sudo apt-get update
-        sudo apt-get install git dwarves libelf-dev ccache automake flex lzop bison gperf build-essential zip curl zlib1g-dev g++-multilib libxml2-utils bzip2 libbz2-dev libbz2-1.0 libghc-bzlib-dev squashfs-tools pngcrush schedtool dpkg-dev liblz4-tool make optipng maven libssl-dev pwgen libswitch-perl policycoreutils minicom libxml-sax-base-perl libxml-simple-perl bc libc6-dev-i386 lib32ncurses-dev libx11-dev lib32z-dev libgl1-mesa-dev xsltproc unzip device-tree-compiler python3
-        curl -so repo https://storage.googleapis.com/git-repo-downloads/repo
-        sudo mv repo /usr/bin
-        sudo chmod +x /usr/bin/repo
-        mkdir -p $GITHUB_WORKSPACE/kernel_workspace
-        sudo mkdir -p /mnt/kernel_workspace
-        sudo chmod 0777 /mnt/kernel_workspace
+      - name: Set Environment Variable
+        run: |
+          sudo mkdir -p /mnt/kernel_workspace
+          sudo chmod 0777 /mnt/kernel_workspace
 
-    - name: Download source code
-      run: |
-        cd /mnt/kernel_workspace
-        repo init --depth=1 --u https://android.googlesource.com/kernel/manifest -b common-android14-6.1-lts
-        REMOTE_BRANCH=$(git ls-remote https://android.googlesource.com/kernel/common android14-6.1-lts)
-        DEFAULT_MANIFEST_PATH=.repo/manifests/default.xml
-        if grep -q deprecated <<< $REMOTE_BRANCH; then
-          sed -i "s/\"android14-6.1-lts\"/\"deprecated\/android14-6.1-lts\"/g" $DEFAULT_MANIFEST_PATH
-        fi
-        repo --trace sync -c -j$(nproc --all) --no-tags --fail-fast
+      - name: Install dependencies
+        run: |
+          sudo apt update && sudo apt upgrade -y
+          sudo apt install -y python3 git
+          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/repo
+          chmod a+x ~/repo
+          sudo mv ~/repo /usr/local/bin/repo
 
-    - name: KernelSU / SUSFS / Misc
-      run: |
-        cd /mnt/kernel_workspace
-        wget https://raw.githubusercontent.com/zmyeir/custom-gki/refs/heads/main/patches/69_hide_stuff.patch -O /mnt/kernel_workspace/common/69_hide_stuff.patch
-        cd /mnt/kernel_workspace/common
-        patch -p1 < 69_hide_stuff.patch
-        cd /mnt/kernel_workspace
-        echo "Adding configuration settings to gki_defconfig..."
-        echo "CONFIG_PID_NS=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_POSIX_MQUEUE=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_IPC_NS=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_USER_NS=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_BPF_STREAM_PARSER=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
-        cat /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
-        sed -i '/stable_scmversion_cmd/s/maybe-dirty/c3bf26/;s/-$android_release-$KMI_GENERATION/-lts/g' ./build/kernel/kleaf/impl/stamp.bzl
-        sed -i '2s/check_defconfig//' ./common/build.config.gki
-        rm -rf ./common/android/abi_gki_protected_exports_aarch64
-        rm -rf ./common/android/abi_gki_protected_exports_x86_64
+      - name: Initialize and Sync Kernel Source
+        run: |
+          echo "Creating folder for configuration: /mnt/kernel_workspace..."
+          cd "/mnt/kernel_workspace"
+          
+          # Initialize and sync kernel source
+          echo "Initializing and syncing kernel source..."
+          repo init -u https://github.com/RealJohnGalt/opsm8650_kernel_manifest.git -b kplatform -m default.xml
+          
+          # Sync repo and apply patches
+          repo --version
+          repo sync
+          
+          # 
+          sed -i 's/check_defconfig//' ./kernel_platform/common/build.config.gki
+          rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
+          git config --global user.email "build-bot@build-host"
+          git config --global user.name "builder"
+          cd ./kernel_platform/common
+          git add -A
+          git commit -s -a -m "build"
+          
+      - name: Add KernelSU
+        run: |
+          echo "Changing to configuration directory: /mnt/kernel_workspace..."
+          cd "/mnt/kernel_workspace/kernel_platform"
+          
+          echo "Adding KernelSU..."
+          curl -LSs "https://raw.githubusercontent.com/backslashxx/KernelSU/magic/kernel/setup.sh" | bash -s magic
+          cd ./KernelSU/
+          KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
+          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
+          sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
 
-    - name: Build Kernel
-      run: |
-        cd /mnt/kernel_workspace
-        tools/bazel build --config=fast //common:kernel_aarch64_dist
-        cp ./bazel-bin/common/kernel_aarch64/Image $GITHUB_WORKSPACE/kernel_workspace/
+      - name: Add Misc Configuration Settings
+        run: |
+          echo "Changing to configuration directory: /mnt/kernel_workspace/kernel_platform..."
+          cd "/mnt/kernel_workspace/kernel_platform"
+          
+          echo "Adding configuration settings to gki_defconfig..."
+          echo "CONFIG_PID_NS=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_POSIX_MQUEUE=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_IPC_NS=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_USER_NS=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_BPF_STREAM_PARSER=y" >> ./common/arch/arm64/configs/gki_defconfig
 
-    - name: Make Anykernel3
-      run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace
-        git clone https://github.com/TheWildJames/AnyKernel3.git -b android14-5.15
-        cp $GITHUB_WORKSPACE/kernel_workspace/Image AnyKernel3/
+      - name: Build the Kernel
+        run: |
+          echo "Changing to configuration directory: /mnt/kernel_workspace..."
+          cd "/mnt/kernel_workspace"
+          
+          echo "Building the kernel..."
+          ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki
 
-    - name: Upload Image
-      uses: actions/upload-artifact@v4
-      with:
-        name: Image
-        path: kernel_workspace/Image
+      - name: Copy Images
+        run: |
+          echo "Changing to configuration directory: /mnt/kernel_workspace..."
+          cd "/mnt/kernel_workspace"
+          
+          echo "Copying Image"
+          tar -czvf custom_out.tgz ./out/dist/{*.img,Image} || echo e
 
-    - name: Upload AnyKernel3
-      uses: actions/upload-artifact@v4
-      with:
-        name: AK3-${{ env.BUILD_TIME }}
-        path: kernel_workspace/AnyKernel3/*
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: OP12-6.1-Kernel
+          path: /mnt/kernel_workspace/custom_out.tgz
