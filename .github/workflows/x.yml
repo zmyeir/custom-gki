@@ -63,10 +63,10 @@ jobs:
           git clone --depth=1 https://github.com/RealJohnGalt/kernel_common_oneplus_sm8650.git -b kplatform-staging common
           
           # Modify
-          rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
-          rm kernel_platform/msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
-          sed -i 's/ -dirty//g' kernel_platform/common/scripts/setlocalversion
-          sed -i 's/ -dirty//g' kernel_platform/msm-kernel/scripts/setlocalversion
+          rm -rf ./common/android/abi_gki_protected_exports_* || echo "No protected exports!"
+          rm -rf ./msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
+          sed -i 's/ -dirty//g' common/scripts/setlocalversion
+          sed -i 's/ -dirty//g' msm-kernel/scripts/setlocalversion
           sed -i '$s|echo "\$res"|echo "$res-zsck"|' ./common/scripts/setlocalversion
          
       - name: Add KernelSU
