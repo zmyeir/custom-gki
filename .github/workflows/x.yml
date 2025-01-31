@@ -20,12 +20,6 @@ jobs:
           df -h
           free -h
 
-      - name: Set Environment Variable
-        run: |
-          echo "BUILD_TIME=$(date "+%y%m%d%H")" >> $GITHUB_ENV
-          sudo mkdir -p /mnt/kernel_workspace
-          sudo chmod 0777 /mnt/kernel_workspace
-
       - name: Install dependencies
         run: |
           sudo apt update
@@ -34,21 +28,22 @@ jobs:
           chmod a+x ~/repo
           sudo mv ~/repo /usr/local/bin/repo
 
+      - name: Set Environment Variable
+        run: |
+          echo "BUILD_TIME=$(date "+%y%m%d%H")" >> $GITHUB_ENV
+          sudo mkdir -p /mnt/kernel_workspace
+          sudo chmod 0777 /mnt/kernel_workspace
+          
+          git config --global user.email "build-user@build-host"
+          git config --global user.name "build-user"
+
       - name: Clone AnyKernel3 and Other Dependencies
         run: |
           echo "Cloning AnyKernel3 and other dependencies..."
-    
-          # Define the branch names using the matrix values
-          ANYKERNEL_BRANCH="android14-6.1"
-          SUSFS_BRANCH="gki-android14-6.1"
-
-          # Debug print the branches
-          echo "Using branch for AnyKernel3: $ANYKERNEL_BRANCH"
-          echo "Using branch for SUSFS: $SUSFS_BRANCH"
 
           # Clone repositories using the branch names
-          git clone https://github.com/TheWildJames/AnyKernel3.git -b "$ANYKERNEL_BRANCH"
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
+          git clone https://github.com/Kernel-SU/AnyKernel3 --depth=1
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1"
           git clone https://github.com/zmyeir/custom-gki.git
       
       - name: Sync Kernel Source
@@ -69,11 +64,10 @@ jobs:
           
           # Modify
           rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
-          sed -i 's/check_defconfig//' ./common/build.config.gki
-          sed -i 's/ -dirty//g' ./common/scripts/setlocalversion
-          sed -i '$s|echo "\$res"|echo "-zsck"|' ./common/scripts/setlocalversion
-          sed -i "/stable_scmversion_cmd/s/-maybe-dirty//g" ./build/kernel/kleaf/impl/stamp.bzl
-          sed -i 's|^source kernel_platform/oplus/build/oplus_setup.sh \$1 \$2|source kernel_platform/oplus/build/oplus_setup.sh \$1 \$2 \$3 \$4 \$5|' ./oplus/build/oplus_build_kernel.sh
+          rm kernel_platform/msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
+          sed -i 's/ -dirty//g' kernel_platform/common/scripts/setlocalversion
+          sed -i 's/ -dirty//g' kernel_platform/msm-kernel/scripts/setlocalversion
+          sed -i '$s|echo "\$res"|echo "$res-zsck"|' ./common/scripts/setlocalversion
          
       - name: Add KernelSU
         run: |
@@ -152,11 +146,16 @@ jobs:
           echo "Changing to configuration directory: /mnt/kernel_workspace..."
           cd "/mnt/kernel_workspace"
           
+          cd kernel_platform/common
+          git add -A
+          git commit -s -a -m "build"
+          cd ../msm-kernel
+          git add -A
+          git commit -s -a -m "build"
+          
+          cd "/mnt/kernel_workspace"
+          
           echo "Building the kernel..."
-          #git config --global user.email "build-bot@build-host"
-          #git config --global user.name "builder"
-          #git add -A
-          #git commit -s -a -m "build"
           ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki
 
       - name: Create Bootimgs Folder and Copy Images
@@ -172,3 +171,9 @@ jobs:
         with:
           name: AnyKernel3-OP12-A15-6.1-KernelSU-SUSFS-${{ env.BUILD_TIME }}
           path: AnyKernel3/*
+
+      - name: Upload MSM-KERNEL
+        uses: actions/upload-artifact@v4
+        with:
+          name: msm
+          path: /mnt/kernel_workspace/kernel_platform/out/msm-kernel-pineapple-gki/dist/Image
