@@ -43,7 +43,7 @@ jobs:
 
           # Clone repositories using the branch names
           git clone https://github.com/Kernel-SU/AnyKernel3 --depth=1
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1"
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
           git clone https://github.com/zmyeir/custom-gki.git
       
       - name: Sync Kernel Source
