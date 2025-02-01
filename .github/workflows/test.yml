@@ -128,18 +128,6 @@ jobs:
           # Add additional tmpfs config setting
           echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
 
-      - name: Add Misc Configuration Settings
-        run: |
-          echo "Changing to configuration directory: /mnt/kernel_workspace/kernel_platform..."
-          cd "/mnt/kernel_workspace/kernel_platform"
-          
-          echo "Adding configuration settings to gki_defconfig..."
-          echo "CONFIG_PID_NS=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_POSIX_MQUEUE=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IPC_NS=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_USER_NS=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_BPF_STREAM_PARSER=y" >> ./common/arch/arm64/configs/gki_defconfig
-
       - name: Build the Kernel
         run: |
           echo "Changing to configuration directory: /mnt/kernel_workspace..."
@@ -155,7 +143,7 @@ jobs:
           cd "/mnt/kernel_workspace"
           
           echo "Building the kernel..."
-          ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki
+          ./kernel_platform/oplus/build/oplus_build_kernel.sh waipio gki
 
       - name: Create Bootimgs Folder and Copy Images
         run: |
