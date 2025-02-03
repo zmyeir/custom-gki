@@ -132,7 +132,6 @@ jobs:
           echo "CONFIG_BPF_STREAM_PARSER=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
           sed -i 's/CONFIG_MTK_GZVM=m/# CONFIG_MTK_GZVM is not set/g' ./common/arch/arm64/configs/gki_defconfig
-          sed -i 's/# CONFIG_GUNYAH_QCOM_PLATFORM is not set/CONFIG_GUNYAH_QCOM_PLATFORM=y/g' ./common/arch/arm64/configs/gki_defconfig
 
       - name: Build the Kernel
         run: |
@@ -146,10 +145,11 @@ jobs:
           git add -A
           git commit -s -a -m "build"
           
-          cd "/mnt/kernel_workspace"
+          cd "/mnt/kernel_workspace/kernel_platform"
           
           echo "Building the kernel..."
-          ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki
+          # ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki
+          python3 build_with_bazel.py -t pineapple gki -o "$(pwd)/out"
 
       - name: Create Bootimgs Folder and Copy Images
         run: |
