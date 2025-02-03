@@ -91,6 +91,7 @@ jobs:
 
            # Apply patches
            cd ./KernelSU
+           git revert -m 1 3a73585 -n
            patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
            patch -p1 < mksu_susfs.patch
            cd ../common
