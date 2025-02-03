@@ -1,10 +1,10 @@
-name: Build OnePlus 12 Android 14 6.1 Kernel
+name: Build OnePlus 12 Kernel with yaap
 
 on:
   workflow_dispatch:
 
 jobs:
-  build-kernel-a14-6-1-kernelsu-susfs:
+  build-kernel-with-kernelsu-susfs:
     runs-on: ubuntu-22.04
 
     steps:
@@ -79,6 +79,8 @@ jobs:
           #curl -LSs "https://raw.githubusercontent.com/backslashxx/KernelSU/magic/kernel/setup.sh" | bash -s magic
           curl -LSs "https://raw.githubusercontent.com/5ec1cff/KernelSU/main/kernel/setup.sh" | bash -
           cd ./KernelSU/
+          # Reverting commit
+          git revert -m 1 3a73585 -n
           KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
           sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
@@ -158,5 +160,5 @@ jobs:
       - name: Upload AnyKernel3
         uses: actions/upload-artifact@v4
         with:
-          name: AnyKernel3-OP12-A15-6.1-KernelSU-SUSFS-${{ env.BUILD_TIME }}
+          name: AnyKernel3-OP12-6.1-KernelSU-SUSFS-${{ env.BUILD_TIME }}
           path: AnyKernel3/*
