@@ -2,6 +2,15 @@ name: Build OnePlus 12 Kernel with yaap
 
 on:
   workflow_dispatch:
+    inputs:
+      CONFIG:
+        description: "CONFIG"
+        required: true
+        default: 'fast'
+      LTO:
+        description: "LTO"
+        required: true
+        default: 'thin'
 
 jobs:
   build-kernel-with-kernelsu-susfs:
@@ -26,7 +35,7 @@ jobs:
           sudo apt install -y python3 git
           curl https://storage.googleapis.com/git-repo-downloads/repo > ~/repo
           chmod a+x ~/repo
-          sudo mv ~/repo /usr/local/bin/repo
+          sudo mv ~/repo /bin/repo
 
       - name: Set Environment Variable
         run: |
@@ -59,8 +68,8 @@ jobs:
           repo --version
           repo --trace sync -c -j$(nproc --all) --no-tags --fail-fast
           cd kernel_platform
-          rm common -rf
-          git clone --depth=1 https://github.com/RealJohnGalt/kernel_common_oneplus_sm8650.git -b kplatform-staging common
+          # rm common -rf
+          # git clone --depth=1 https://github.com/RealJohnGalt/kernel_common_oneplus_sm8650.git -b kplatform-staging common
           
           # Modify
           rm -rf ./common/android/abi_gki_protected_exports_* || echo "No protected exports!"
@@ -131,7 +140,7 @@ jobs:
           echo "CONFIG_USER_NS=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_BPF_STREAM_PARSER=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
-
+          
       - name: Build the Kernel
         run: |
           echo "Changing to configuration directory: /mnt/kernel_workspace..."
@@ -144,18 +153,20 @@ jobs:
           git add -A
           git commit -s -a -m "build"
           
-          cd "/mnt/kernel_workspace"
+          cd "/mnt/kernel_workspace/kernel_platform"
           
           echo "Building the kernel..."
-          ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki
-
+          # ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki
+          python3 build_with_bazel.py -t pineapple gki --config=${{ github.event.inputs.CONFIG }} --lto=${{ github.event.inputs.LTO }} -o "$(pwd)/../out"
+          
       - name: Create Bootimgs Folder and Copy Images
         run: |
-          echo "Changing to configuration directory: /mnt/kernel_workspace..."
-          cd "/mnt/kernel_workspace"
+          echo "Changing to configuration directory: /mnt/kernel_workspace/..."
+          cd "/mnt/kernel_workspace/"
           
           echo "Copying Image"
           cp ./out/dist/Image $GITHUB_WORKSPACE/AnyKernel3/Image
+          ls ./out/dist/
 
       - name: Upload AnyKernel3
         uses: actions/upload-artifact@v4
