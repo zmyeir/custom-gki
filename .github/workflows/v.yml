@@ -148,10 +148,10 @@ jobs:
           
           echo "Building the kernel..."
           # ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki
-          
-          tools/bazel build --config=fast --lto=thin //build/kernel/kleaf:print_flags
-          python3 build_with_bazel.py -t pineapple gki --config=fast --lto=thin -o "$(pwd)/../out"
 
+          tools/bazel build --config=fast --lto=thin --pgo=none --//msm-kernel:skip_abi=true --//msm-kernel:skip_abl=true --config=stamp --user_kmi_symbol_lists=//msm-kernel:android/abi_gki_aarch64_qcom --ignore_missing_projects //msm-kernel:pineapple_gki_dist //msm-kernel:pineapple_gki_dtc_dist //build/kernel/kleaf:print_flags
+          tools/bazel build --config=fast --lto=thin --pgo=none --//msm-kernel:skip_abi=true --//msm-kernel:skip_abl=true --config=stamp --user_kmi_symbol_lists=//msm-kernel:android/abi_gki_aarch64_qcom --ignore_missing_projects //msm-kernel:pineapple_gki_dist //msm-kernel:pineapple_gki_dtc_dist -- --dist_dir="$(pwd)/../out"
+          
       - name: Create Bootimgs Folder and Copy Images
         run: |
           echo "Changing to configuration directory: /mnt/kernel_workspace/kernel_platform..."
