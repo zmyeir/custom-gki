@@ -161,11 +161,12 @@ jobs:
           
       - name: Create Bootimgs Folder and Copy Images
         run: |
-          echo "Changing to configuration directory: /mnt/kernel_workspace/kernel_platform..."
-          cd "/mnt/kernel_workspace/kernel_platform"
+          echo "Changing to configuration directory: /mnt/kernel_workspace/..."
+          cd "/mnt/kernel_workspace/"
           
           echo "Copying Image"
           cp ./out/dist/Image $GITHUB_WORKSPACE/AnyKernel3/Image
+          ls ./out/dist/
 
       - name: Upload AnyKernel3
         uses: actions/upload-artifact@v4
