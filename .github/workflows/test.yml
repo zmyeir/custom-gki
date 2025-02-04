@@ -88,11 +88,11 @@ jobs:
           #curl -LSs "https://raw.githubusercontent.com/backslashxx/KernelSU/magic/kernel/setup.sh" | bash -s magic
           curl -LSs "https://raw.githubusercontent.com/5ec1cff/KernelSU/main/kernel/setup.sh" | bash -
           cd ./KernelSU/
-          # Reverting commit
-          git revert -m 1 3a73585 -n
           KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
           sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
+          # Reverting commit
+          git revert -m 1 3a73585 -n
 
       - name: Apply SUSFS Patches
         run: |
@@ -158,7 +158,7 @@ jobs:
           
           echo "Building the kernel..."
           # ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki
-          python3 build_with_bazel.py -t pineapple gki --config=${{ github.event.inputs.CONFIG }} --lto=${{ github.event.inputs.LTO }} -o "$(pwd)/../out"
+          python3 build_with_bazel.py -t pineapple gki --config=${{ github.event.inputs.CONFIG }} --lto=${{ github.event.inputs.LTO }} --page_size=16k -o "$(pwd)/../out"
           
       - name: Create Bootimgs Folder and Copy Images
         run: |
