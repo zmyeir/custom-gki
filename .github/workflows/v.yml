@@ -150,12 +150,12 @@ jobs:
           # ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki
           
           tools/bazel build --config=fast --lto=thin //build/kernel/kleaf:print_flags
-          python3 build_with_bazel.py -t pineapple gki --config=fast --lto=thin -o "$(pwd)/out"
+          python3 build_with_bazel.py -t pineapple gki --config=fast --lto=thin -o "$(pwd)/../out"
 
       - name: Create Bootimgs Folder and Copy Images
         run: |
-          echo "Changing to configuration directory: /mnt/kernel_workspace..."
-          cd "/mnt/kernel_workspace"
+          echo "Changing to configuration directory: /mnt/kernel_workspace/kernel_platform..."
+          cd "/mnt/kernel_workspace/kernel_platform"
           
           echo "Copying Image"
           cp ./out/dist/Image $GITHUB_WORKSPACE/AnyKernel3/Image
