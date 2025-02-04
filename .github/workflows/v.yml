@@ -2,6 +2,15 @@ name: Build OnePlus 12 Kernel with yaap test
 
 on:
   workflow_dispatch:
+    inputs:
+      CONFIG:
+        description: "CONFIG"
+        required: true
+        default: 'fast'
+      LTO:
+        description: "LTO"
+        required: true
+        default: 'thin'
 
 jobs:
   build-kernel-with-kernelsu-susfs:
@@ -59,8 +68,8 @@ jobs:
           repo --version
           repo --trace sync -c -j$(nproc --all) --no-tags --fail-fast
           cd kernel_platform
-          rm common -rf
-          git clone --depth=1 https://github.com/RealJohnGalt/kernel_common_oneplus_sm8650.git -b kplatform-staging common
+          # rm common -rf
+          # git clone --depth=1 https://github.com/RealJohnGalt/kernel_common_oneplus_sm8650.git -b kplatform-staging common
           
           # Modify
           rm -rf ./common/android/abi_gki_protected_exports_* || echo "No protected exports!"
@@ -148,7 +157,7 @@ jobs:
           
           echo "Building the kernel..."
           # ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki
-          python3 build_with_bazel.py -t pineapple gki --config=release --lto=full -o "$(pwd)/../out"
+          python3 build_with_bazel.py -t pineapple gki --config=${{ github.event.inputs.CONFIG }} --lto=${{ github.event.inputs.LTO }} -o "$(pwd)/../out"
           
       - name: Create Bootimgs Folder and Copy Images
         run: |
