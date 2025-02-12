@@ -78,7 +78,31 @@ jobs:
           sed -i 's/ -dirty//g' common/scripts/setlocalversion
           sed -i 's/ -dirty//g' msm-kernel/scripts/setlocalversion
           sed -i '$s|echo "\$res"|echo "-zsck"|' common/scripts/setlocalversion
-         
+
+      - name: Add Lxc Configuration Settings
+        run: |
+          echo "Changing to configuration directory: /mnt/kernel_workspace/kernel_platform..."
+          cd "/mnt/kernel_workspace/kernel_platform"
+          echo "Adding configuration settings to gki_defconfig..."
+          echo "CONFIG_PID_NS=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_SYSVIPC=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_POSIX_MQUEUE=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_IPC_NS=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_USER_NS=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_BPF_STREAM_PARSER=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_CGROUP_DEVICE=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_NETFILTER_XT_TARGET_CHECKSUM=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_IP6_NF_NAT=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_IP6_NF_TARGET_MASQUERADE=y" >> ./common/arch/arm64/configs/gki_defconfig
+
+      - name: Apply Lxc Patches
+        run: |
+          echo "Changing to configuration directory: /mnt/kernel_workspace..."
+          cd "/mnt/kernel_workspace/kernel_platform/common"
+          cp $GITHUB_WORKSPACE/custom-gki/patches/lxc.patch ./
+          patch -p2 < lxc.patch
+
       - name: Add KernelSU
         run: |
           echo "Changing to configuration directory: /mnt/kernel_workspace..."
@@ -92,7 +116,7 @@ jobs:
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
           sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
           # Reverting commit
-          git revert -m 1 36120da -n
+          git revert -m 1 $(git log --grep="remove devpts hook" --pretty=format:"%h") -n
 
       - name: Apply SUSFS Patches
         run: |
@@ -128,23 +152,6 @@ jobs:
           cp $GITHUB_WORKSPACE/custom-gki/patches/69_hide_stuff.patch ./
           patch -p1 -F 3 < 69_hide_stuff.patch
 
-      - name: Add Configuration Settings
-        run: |
-          echo "Changing to configuration directory: /mnt/kernel_workspace/kernel_platform..."
-          cd "/mnt/kernel_workspace/kernel_platform"
-          cp $GITHUB_WORKSPACE/custom-gki/patches/lxc.patch ./
-          patch -p1 < lxc.patch
-          
-          echo "Adding configuration settings to gki_defconfig..."
-          echo "CONFIG_PID_NS=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_POSIX_MQUEUE=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_SYSVIPC=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IPC_NS=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_USER_NS=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_BPF_STREAM_PARSER=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_CGROUP_DEVICE=y" >> ./common/arch/arm64/configs/gki_defconfig
-          
       - name: Build the Kernel
         run: |
           echo "Changing to configuration directory: /mnt/kernel_workspace..."
@@ -162,7 +169,7 @@ jobs:
           echo "Building the kernel..."
           # ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki
           python3 build_with_bazel.py -t pineapple gki --config=${{ github.event.inputs.CONFIG }} --lto=${{ github.event.inputs.LTO }} -o "$(pwd)/../out"
-          
+
       - name: Create Bootimgs Folder and Copy Images
         run: |
           echo "Changing to configuration directory: /mnt/kernel_workspace/..."
