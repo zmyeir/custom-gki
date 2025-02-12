@@ -111,7 +111,7 @@ jobs:
           chmod +x kptools
           
           echo "Patch Image"
-          cp ./out/dist/Image ./kernelpatch/Image
+          cp ../out/dist/Image ./Image
           ./kptools -p --image Image --skey "SuperKey@65535" --kpimg ./kpimg --out ./kernel
 
       - name: Create AnyKernel3
