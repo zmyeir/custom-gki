@@ -52,7 +52,6 @@ jobs:
 
           # Clone repositories using the branch names
           git clone https://github.com/Kernel-SU/AnyKernel3 --depth=1
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
           git clone https://github.com/zmyeir/custom-gki.git
       
       - name: Sync Kernel Source
@@ -117,32 +116,6 @@ jobs:
           sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
           # Reverting commit
           git revert -m 1 $(git log --grep="remove devpts hook" --pretty=format:"%h") -n
-
-      - name: Apply SUSFS Patches
-        run: |
-          echo "Changing to configuration directory: /mnt/kernel_workspace..."
-          cd "/mnt/kernel_workspace/kernel_platform"
-          
-          echo "Applying SUSFS patches..."
-          
-          # Copy SUSFS patches
-          cp $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU/
-          #cp $GITHUB_WORKSPACE/custom-gki/patches/susfs.patch ./KernelSU/
-          cp $GITHUB_WORKSPACE/custom-gki/patches/mksu_susfs.patch ./KernelSU/
-          cp $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ./common/
-          cp $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/fs/* ./common/fs/
-          cp $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
-
-          cd ./KernelSU
-          
-          # Apply SUSFS patch for KernelSU
-          patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
-          #patch -p1 < susfs.patch
-          patch -p1 < mksu_susfs.patch
-          
-          # Change to common directory and apply SUSFS patch
-          cd ../common
-          patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || true
 
       - name: Apply Hide Stuff Patches
         run: |
