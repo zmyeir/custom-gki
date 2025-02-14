@@ -53,7 +53,7 @@ jobs:
           
           # Initialize and sync kernel source
           echo "Initializing and syncing kernel source..."
-          repo init -u https://github.com/RealJohnGalt/opsm8650_kernel_manifest.git -b kplatform -m default.xml
+          repo init -u https://github.com/zmyeir/oneplus12_kernel_manifest.git -b main -m default.xml
           
           # Sync repo and apply patches
           repo --version
@@ -68,14 +68,6 @@ jobs:
           sed -i 's/check_defconfig//' common/build.config.gki
           sed -i '$s|echo "\$res"|echo "-zsck"|' common/scripts/setlocalversion
 
-      - name: Apply Lxc Patches
-        run: |
-          git clone https://github.com/zmyeir/custom-gki.git
-          echo "Changing to configuration directory: /mnt/kernel_workspace..."
-          cd "/mnt/kernel_workspace/kernel_platform/common"
-          cp $GITHUB_WORKSPACE/custom-gki/patches/lxc.patch ./
-          patch -p2 < lxc.patch
-
       - name: Add Configuration Settings
         run: |
           echo "Changing to configuration directory: /mnt/kernel_workspace/kernel_platform..."
@@ -87,7 +79,6 @@ jobs:
           echo "CONFIG_USER_NS=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_BPF_STREAM_PARSER=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_CGROUP_DEVICE=y" >> ./common/arch/arm64/configs/gki_defconfig
 
       - name: Build the Kernel
         run: |
