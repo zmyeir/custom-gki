@@ -1,0 +1,133 @@
+name: Build OP 12 Kernel with yaap mksu
+
+on:
+  workflow_dispatch:
+    inputs:
+      CONFIG:
+        description: "CONFIG"
+        required: true
+        default: 'release'
+      LTO:
+        description: "LTO"
+        required: true
+        default: 'thin'
+
+jobs:
+  build-kernel-with-kernelsu-susfs:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Set swap
+        run: |
+          export SWAP_FILE=$(swapon --show=NAME | tail -n 1)
+          sudo swapoff $SWAP_FILE
+          sudo rm -rf $SWAP_FILE
+          sudo fallocate -l 16G /swap_filex
+          sudo chmod 600 /swap_filex
+          sudo mkswap /swap_filex
+          sudo swapon /swap_filex
+          df -h
+          free -h
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y python3 git
+          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/repo
+          chmod a+x ~/repo
+          sudo mv ~/repo /bin/repo
+
+      - name: Set Environment Variable
+        run: |
+          echo "BUILD_TIME=$(date "+%y%m%d%H")" >> $GITHUB_ENV
+          sudo mkdir -p /mnt/kernel_workspace
+          sudo chmod 0777 /mnt/kernel_workspace
+          
+          git config --global user.email "build-user@build-host"
+          git config --global user.name "build-user"
+
+      - name: Sync Kernel Source
+        run: |
+          echo "Creating folder for configuration: /mnt/kernel_workspace..."
+          cd "/mnt/kernel_workspace"
+          
+          # Initialize and sync kernel source
+          echo "Initializing and syncing kernel source..."
+          repo init -u https://github.com/RealJohnGalt/opsm8650_kernel_manifest.git -b kplatform -m default.xml
+          
+          # Sync repo and apply patches
+          repo --version
+          repo --trace sync -c -j$(nproc --all) --no-tags --fail-fast
+          cd kernel_platform
+          # rm common -rf
+          # git clone --depth=1 https://github.com/RealJohnGalt/kernel_common_oneplus_sm8650.git -b kplatform-staging common
+          
+          # Modify
+          rm -rf ./common/android/abi_gki_protected_exports_* || echo "No protected exports!"
+          rm -rf ./msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
+          sed -i 's/check_defconfig//' common/build.config.gki
+          sed -i 's/ -dirty//g' common/scripts/setlocalversion
+          sed -i 's/ -dirty//g' msm-kernel/scripts/setlocalversion
+          sed -i '$s|echo "\$res"|echo "$res-zsck"|' common/scripts/setlocalversion
+
+      - name: Add KernelSU
+        run: |
+          echo "Changing to configuration directory: /mnt/kernel_workspace..."
+          cd "/mnt/kernel_workspace/kernel_platform"
+          
+          echo "Adding KernelSU..."
+          #curl -LSs "https://raw.githubusercontent.com/backslashxx/KernelSU/magic/kernel/setup.sh" | bash -s magic
+          curl -LSs "https://raw.githubusercontent.com/5ec1cff/KernelSU/main/kernel/setup.sh" | bash -
+          cd ./KernelSU/
+          KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
+          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
+          sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
+          # Reverting commit
+          git revert -m 1 $(git log --grep="remove devpts hook" --pretty=format:"%h") -n
+
+      - name: Add Configuration Settings
+        run: |
+          echo "Changing to configuration directory: /mnt/kernel_workspace/kernel_platform..."
+          cd "/mnt/kernel_workspace/kernel_platform"
+          
+          echo "Adding configuration settings to gki_defconfig..."
+          echo "CONFIG_PID_NS=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_POSIX_MQUEUE=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_IPC_NS=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_USER_NS=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_BPF_STREAM_PARSER=y" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
+
+      - name: Build the Kernel
+        run: |
+          echo "Changing to configuration directory: /mnt/kernel_workspace..."
+          cd "/mnt/kernel_workspace"
+          
+          cd kernel_platform/common
+          git add -A
+          git commit -s -a -m "build"
+          cd ../msm-kernel
+          git add -A
+          git commit -s -a -m "build"
+          
+          cd "/mnt/kernel_workspace/kernel_platform"
+          
+          echo "Building the kernel..."
+          # ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki
+          python3 build_with_bazel.py -t pineapple gki --config=${{ github.event.inputs.CONFIG }} --lto=${{ github.event.inputs.LTO }} -o "$(pwd)/../out"
+          
+      - name: Create Bootimgs Folder and Copy Images
+        run: |
+          git clone https://github.com/Kernel-SU/AnyKernel3 --depth=1
+          echo "Changing to configuration directory: /mnt/kernel_workspace/..."
+          cd "/mnt/kernel_workspace/"
+          
+          echo "Copying Image"
+          cp ./out/dist/Image $GITHUB_WORKSPACE/AnyKernel3/Image
+          ls ./out/dist/
+
+      - name: Upload AnyKernel3
+        uses: actions/upload-artifact@v4
+        with:
+          name: AnyKernel3-OP12-6.1-KernelSU-${{ env.BUILD_TIME }}
+          path: AnyKernel3/*
