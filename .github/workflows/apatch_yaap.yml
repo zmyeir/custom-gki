@@ -1,4 +1,4 @@
-name: Build OnePlus 12 Kernel with yaap test
+name: Build OP12 Kernel with yaap apatch
 
 on:
   workflow_dispatch:
