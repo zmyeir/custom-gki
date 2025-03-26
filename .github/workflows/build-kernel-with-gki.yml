@@ -7,97 +7,85 @@ jobs:
     name: Build Kernel by ${{ github.actor }}
     runs-on: ubuntu-latest
     steps:
-    - name: Set swap
-      uses: pierotofy/set-swap-space@master
-      with:
-        swap-size-gb: 8
+      - name: Set swap
+        run: |
+          export SWAP_FILE=$(swapon --show=NAME | tail -n 1)
+          sudo swapoff $SWAP_FILE
+          sudo rm -rf $SWAP_FILE
+          sudo fallocate -l 16G /swap_filex
+          sudo chmod 600 /swap_filex
+          sudo mkswap /swap_filex
+          sudo swapon /swap_filex
+          df -h
+          free -h
 
-    - name: Setup build kernel environment
-      run: |
-        echo "BUILD_TIME=$(TZ=Asia/Shanghai date "+%y%m%d")" >> $GITHUB_ENV
-        sudo apt-get update
-        sudo apt-get install git dwarves libelf-dev ccache automake flex lzop bison gperf build-essential zip curl zlib1g-dev g++-multilib libxml2-utils bzip2 libbz2-dev libbz2-1.0 libghc-bzlib-dev squashfs-tools pngcrush schedtool dpkg-dev liblz4-tool make optipng maven libssl-dev pwgen libswitch-perl policycoreutils minicom libxml-sax-base-perl libxml-simple-perl bc libc6-dev-i386 lib32ncurses-dev libx11-dev lib32z-dev libgl1-mesa-dev xsltproc unzip device-tree-compiler python3
-        curl -so repo https://storage.googleapis.com/git-repo-downloads/repo
-        sudo mv repo /usr/bin
-        sudo chmod +x /usr/bin/repo
-        mkdir -p $GITHUB_WORKSPACE/kernel_workspace
-        sudo mkdir -p /mnt/kernel_workspace
-        sudo chmod 0777 /mnt/kernel_workspace
-        cd /mnt/kernel_workspace
-        git clone https://github.com/zmyeir/custom-gki --depth=1
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y python3 git
+          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/repo
+          chmod a+x ~/repo
+          sudo mv ~/repo /bin/repo
 
-    - name: Download source code
-      run: |
-        cd /mnt/kernel_workspace
-        repo init --depth=1 --u https://android.googlesource.com/kernel/manifest -b common-android14-6.1-lts
-        REMOTE_BRANCH=$(git ls-remote https://android.googlesource.com/kernel/common android14-6.1-lts)
-        DEFAULT_MANIFEST_PATH=.repo/manifests/default.xml
-        if grep -q deprecated <<< $REMOTE_BRANCH; then
-          sed -i "s/\"android14-6.1-lts\"/\"deprecated\/android14-6.1-lts\"/g" $DEFAULT_MANIFEST_PATH
-        fi
-        repo --trace sync -c -j$(nproc --all) --no-tags --fail-fast
+      - name: Set Environment Variable
+        run: |
+          echo "BUILD_TIME=$(date "+%y%m%d%H")" >> $GITHUB_ENV
+          sudo mkdir -p /mnt/kernel_workspace
+          sudo chmod 0777 /mnt/kernel_workspace
+          
+          git config --global user.email "build-user@build-host"
+          git config --global user.name "build-user"
 
-    - name: KernelSU / SUSFS / Misc
-      run: |
-        cd /mnt/kernel_workspace
-        echo "Add KernelSU"
-        #curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -
-        curl -LSs "https://raw.githubusercontent.com/backslashxx/KernelSU/magic/kernel/setup.sh" | bash -s magic
-        echo "Applying SUSFS patches..."
-        echo "kernelsu"
-        git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
-        cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch /mnt/kernel_workspace/KernelSU/
-        cp /mnt/kernel_workspace/custom-gki/patches/susfs.patch /mnt/kernel_workspace/KernelSU/
-        cd /mnt/kernel_workspace/KernelSU/
-        patch -p1 < 10_enable_susfs_for_ksu.patch || true
-        patch -p1 < susfs.patch
-        cd /mnt/kernel_workspace
-        echo "ack"
-        cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch /mnt/kernel_workspace/common/
-        cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/fs/* /mnt/kernel_workspace/common/fs/
-        cp /mnt/kernel_workspace/susfs4ksu/kernel_patches/include/linux/* /mnt/kernel_workspace/common/include/linux/
-        cd /mnt/kernel_workspace/common
-        patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch
-        echo "misc"
-        cp /mnt/kernel_workspace/custom-gki/patches/69_hide_stuff.patch /mnt/kernel_workspace/common/
-        patch -p1 < 69_hide_stuff.patch
-        cd /mnt/kernel_workspace
-        echo "Adding configuration settings to gki_defconfig..."
-        echo "CONFIG_KSU=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_SUS_SU=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_PID_NS=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_POSIX_MQUEUE=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_IPC_NS=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_USER_NS=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
-        echo "CONFIG_BPF_STREAM_PARSER=y" >> /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
-        cat /mnt/kernel_workspace/common/arch/arm64/configs/gki_defconfig
-        sed -i '/stable_scmversion_cmd/s/maybe-dirty/c3bf26/;s/-$android_release-$KMI_GENERATION/-lts/g' ./build/kernel/kleaf/impl/stamp.bzl
-        sed -i '2s/check_defconfig//' ./common/build.config.gki
-        rm -rf ./common/android/abi_gki_protected_exports_aarch64
-        rm -rf ./common/android/abi_gki_protected_exports_x86_64
+      - name: Download source code
+        run: |
+          cd /mnt/kernel_workspace
+          repo init --depth=1 --u https://android.googlesource.com/kernel/manifest -b common-android14-6.1-lts
+          REMOTE_BRANCH=$(git ls-remote https://android.googlesource.com/kernel/common android14-6.1-lts)
+          DEFAULT_MANIFEST_PATH=.repo/manifests/default.xml
+          if grep -q deprecated <<< $REMOTE_BRANCH; then
+            sed -i "s/\"android14-6.1-lts\"/\"deprecated\/android14-6.1-lts\"/g" $DEFAULT_MANIFEST_PATH
+          fi
+          repo --trace sync -c -j$(nproc --all) --no-tags --fail-fast
 
-    - name: Build Kernel
-      run: |
-        cd /mnt/kernel_workspace
-        tools/bazel build --config=fast //common:kernel_aarch64_dist
-        cp ./bazel-bin/common/kernel_aarch64/Image $GITHUB_WORKSPACE/kernel_workspace/
+      - name: Build Kernel
+        run: |
+          cd /mnt/kernel_workspace
+          tools/bazel build --config=fast //common:kernel_aarch64_dist
 
-    - name: Make Anykernel3
-      run: |
-        cd $GITHUB_WORKSPACE/kernel_workspace
-        git clone https://github.com/TheWildJames/AnyKernel3.git -b android14-5.15
-        cp $GITHUB_WORKSPACE/kernel_workspace/Image AnyKernel3/
+      - name: Add KernelPatch
+        run: |
+          echo "Changing to configuration directory: /mnt/kernel_workspace/kernel_platform..."
+          cd "/mnt/kernel_workspace"
+          
+          mkdir kernelpatch && cd kernelpatch
+          
+          echo "Download Pre-build tools"
+          wget https://github.com/bmax121/KernelPatch/releases/download/0.11.2/kpimg-android -O kpimg
+          wget https://github.com/bmax121/KernelPatch/releases/download/0.11.2/kptools-linux -O kptools
+          chmod +x kptools
+          
+          echo "Patch Image"
+          cp ../bazel-bin/common/kernel_aarch64/Image ./Image
+          ./kptools -p --image Image --skey "SuperKey@65535" --kpimg ./kpimg --out ./kernel
 
-    - name: Upload Image
-      uses: actions/upload-artifact@v4
-      with:
-        name: Image
-        path: kernel_workspace/Image
+      - name: Create AnyKernel3
+        run: |
+          echo "Changing to configuration directory: /mnt/kernel_workspace/..."
+          cd "/mnt/kernel_workspace/"
+          
+          git clone https://github.com/Kernel-SU/AnyKernel3 --depth=1
+          
+          echo "Copying Image"
+          cp ./kernelpatch/kernel ./AnyKernel3/Image
 
-    - name: Upload AnyKernel3
-      uses: actions/upload-artifact@v4
-      with:
-        name: AK3-${{ env.BUILD_TIME }}
-        path: kernel_workspace/AnyKernel3/*
+      - name: Upload AnyKernel3
+        uses: actions/upload-artifact@v4
+        with:
+          name: AnyKernel3-OP12-6.1-APatch-${{ env.BUILD_TIME }}
+          path: /mnt/kernel_workspace/AnyKernel3/*
+
+      - name: Upload Image
+        uses: actions/upload-artifact@v4
+        with:
+          name: Image-${{ env.BUILD_TIME }}
+          path: /mnt/kernel_workspace/out/dist/Image
