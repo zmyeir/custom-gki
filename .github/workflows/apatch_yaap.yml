@@ -1,4 +1,4 @@
-name: Build OP12 Kernel with yaap apatch
+name: Build OnePlus 12 Kernel with yaap apatch
 
 on:
   workflow_dispatch:
@@ -53,7 +53,7 @@ jobs:
           
           # Initialize and sync kernel source
           echo "Initializing and syncing kernel source..."
-          repo init -u https://github.com/zmyeir/oneplus12_kernel_manifest.git -b main -m default.xml
+          repo init -u https://github.com/RealJohnGalt/opsm8650_kernel_manifest.git -b kplatform -m default.xml
           
           # Sync repo and apply patches
           repo --version
